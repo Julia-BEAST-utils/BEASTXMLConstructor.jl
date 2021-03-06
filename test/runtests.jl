@@ -1,6 +1,6 @@
-using BEASTXMLConstructor
-using Test
+using Test, SafeTestsets
 
-@testset "BEASTXMLConstructor.jl" begin
-    # Write your tests here.
-end
+
+# @time @safetestset "Data simulation test" begin include("simulation_test.jl") end
+# @time @safetestset "RTrees Test" begin include("RTrees_test.jl") end
+@time @safetestset "XMLConstructor Test" begin include("xml_test.jl") end
