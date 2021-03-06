@@ -1,5 +1,6 @@
 module BEASTXMLConstructor
 
+
 export BEASTXMLElement,
        MCMCOptions,
        save_xml,
@@ -22,9 +23,11 @@ export BEASTXMLElement,
        set_file_logEvery
 
 
-using LightXML, LinearAlgebra, DataFrames, PhyloNetworks, UnPack
-import BeastUtils.BeastNames, BeastUtils.TreeUtils
+using LightXML, LinearAlgebra, DataFrames, UnPack
+import BeastUtils.TreeUtils
 using BeastUtils.MatrixUtils
+
+include("BeastNames.jl")
 bn = BeastNames
 
 XMLOrNothing = Union{XMLElement, Nothing}
@@ -32,6 +35,8 @@ XMLOrNothing = Union{XMLElement, Nothing}
 abstract type MyXMLElement end
 abstract type SimpleXMLElement <: MyXMLElement end
 abstract type AbstractDataXMLElement <: MyXMLElement end
+
+import Base: copy
 
 import LightXML: name
 function name(x::MyXMLElement)

@@ -11,7 +11,7 @@ function make_pfa_xml(data::Matrix{Float64}, taxa::Vector{T},
             sle::Int=100) where T <: AbstractString
 
     beastXML = BEASTXMLElement()
-    data_el = DataXMLElement(data, taxa, newick)
+    data_el = DataXMLElement(data, taxa)
     add_child(beastXML, data_el)
 
     newick_el = NewickXMLElement(newick)
@@ -108,7 +108,7 @@ function make_orthogonal_pfa_xml(data::Matrix{Float64}, taxa::Vector{T},
                                  sle::Int=100) where T <: AbstractString
 
     beastXML = BEASTXMLElement()
-    data_el = DataXMLElement(data, taxa, newick)
+    data_el = DataXMLElement(data, taxa)
     add_child(beastXML, data_el)
 
     newick_el = NewickXMLElement(newick)
@@ -237,7 +237,7 @@ function make_residual_xml(data::Matrix{Float64}, taxa::Vector{T},
             newick::String; chain_length=100) where T <: AbstractString
 
     beastXML = BEASTXMLElement()
-    data_el = DataXMLElement(data, taxa, newick)
+    data_el = DataXMLElement(data, taxa)
     add_child(beastXML, data_el)
 
     newick_el = NewickXMLElement(newick)
@@ -282,7 +282,7 @@ end
 
 function make_joint_xml(newick::String, dm::DataModel, jpm::JointProcessModel)
     beastXML = BEASTXMLElement()
-    data_el = DataXMLElement(dm, newick)
+    data_el = DataXMLElement(dm)
     add_child(beastXML, data_el)
 
     newick_el = NewickXMLElement(newick)
@@ -318,7 +318,7 @@ function make_old_pfa_xml(data::Matrix{Float64}, taxa::Vector{T},
     beastXML = BEASTXMLElement()
 
     data_el = DataXMLElement([data, factors],
-                [bn.DEFAULT_TRAIT_NAME, bn.FACTOR_TRAIT_NAME], taxa, newick)
+                [bn.DEFAULT_TRAIT_NAME, bn.FACTOR_TRAIT_NAME], taxa)
     add_child(beastXML, data_el)
 
     newick_el = NewickXMLElement(newick)
@@ -385,7 +385,7 @@ function make_sampled_pfa_xml(data::Matrix{Float64}, taxa::Vector{<:AbstractStri
     beastXML = BEASTXMLElement()
 
     data_el = DataXMLElement([data, zeros(size(data, 1), k)],
-                [bn.DEFAULT_TRAIT_NAME, bn.FACTOR_TRAIT_NAME], taxa, newick)
+                [bn.DEFAULT_TRAIT_NAME, bn.FACTOR_TRAIT_NAME], taxa)
     add_child(beastXML, data_el)
 
     newick_el = NewickXMLElement(newick)

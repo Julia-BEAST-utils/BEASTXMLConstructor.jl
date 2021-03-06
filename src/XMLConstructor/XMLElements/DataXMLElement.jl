@@ -7,33 +7,31 @@ mutable struct DataXMLElement <: MyXMLElement
     use_times::Bool
 
     function DataXMLElement(mat::AbstractMatrix{Float64},
-                taxa::Vector{S},
-                newick::String;
+                taxa::Vector{S};
                 trait_name::AbstractString = bn.DEFAULT_TRAIT_NAME
                 ) where S <: AbstractString
 
-        node_times = get_node_times(taxa, newick)
+        node_times = Float64[]
         return new(nothing, [mat], [trait_name], taxa, node_times, false)
     end
 
     function DataXMLElement(mats::Vector{<:AbstractMatrix{Float64}},
                 trait_names::Vector{T} where T <: AbstractString,
-                taxa::Vector{S},
-                newick::String
+                taxa::Vector{S}
                 ) where S <: AbstractString
 
-        node_times = get_node_times(taxa, newick)
+        node_times = Float64[]
 
         return new(nothing, mats, trait_names, taxa, node_times, false)
     end
 
 end
 
-function DataXMLElement(dm::DataModel, newick::String)
+function DataXMLElement(dm::DataModel)
     n_partitions = length(dm.partitions)
     n = size(dm.data, 1)
     data = [@view dm.data[1:n, dm.partitions[i]] for i = 1:n_partitions]
-    return DataXMLElement(data, dm.trait_names, dm.taxa, newick)
+    return DataXMLElement(data, dm.trait_names, dm.taxa)
 end
 
 
@@ -96,18 +94,18 @@ function format_data_line(data::AbstractMatrix{Float64}, ind::Int)
     return join(s_data, ' ')
 end
 
-function get_node_times(taxa::Vector{String}, newick::String)
-    tree = PhyloNetworks.readTopology(newick)
-    root_dists = TreeUtils.leaf_distances(tree)
-    tree_taxa = [tree.leaf[i].name for i = 1:tree.numTaxa]
-    node_times = zeros(tree.numTaxa)
-    for i = 1:length(taxa)
-        taxon = taxa[i]
-        ind = findfirst(x -> x == taxon, tree_taxa)
-        node_times[i] = root_dists[ind]
-    end
-    return node_times
-end
+# function get_node_times(taxa::Vector{String}, newick::String)
+#     tree = PhyloNetworks.readTopology(newick)
+#     root_dists = TreeUtils.leaf_distances(tree)
+#     tree_taxa = [tree.leaf[i].name for i = 1:tree.numTaxa]
+#     node_times = zeros(tree.numTaxa)
+#     for i = 1:length(taxa)
+#         taxon = taxa[i]
+#         ind = findfirst(x -> x == taxon, tree_taxa)
+#         node_times[i] = root_dists[ind]
+#     end
+#     return node_times
+# end
 
 function add_trait!(dxl::DataXMLElement, data::Matrix{Float64}, trait_name::String)
     push!(dxl.data_mats, data)
@@ -115,9 +113,11 @@ function add_trait!(dxl::DataXMLElement, data::Matrix{Float64}, trait_name::Stri
 end
 
 function set_dates(xml::DataXMLElement, dates::AbstractVector{Float64})
-    if length(dates) != length(xml.node_times)
-        DimensionMismatch("The number of dates must match the number of taxa.")
+    if length(xml.node_times) == 0
+        xml.node_times = copy(dates)
+    elseif length(dates) != length(xml.node_times)
+        throw(DimensionMismatch("The number of dates must match the number of taxa."))
+    else
+        xml.node_times .= dates
     end
-
-    xml.node_times .= dates
 end
