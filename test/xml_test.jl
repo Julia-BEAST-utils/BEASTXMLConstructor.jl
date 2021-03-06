@@ -1,5 +1,5 @@
 using BEASTXMLConstructor
-using BeastUtils.TreeUtils, PhyloNetworks
+
 
 xc = BEASTXMLConstructor
 
@@ -51,7 +51,7 @@ end
 
 data_path = "data.csv"
 dates_path = "dates.csv"
-newick_path = "newick.txt"
+newick_path = joinpath("data", "newick.txt")
 xml_path = "BEASTXMLConstructor.xml"
 dates_xml_path = "xml_dates.xml"
 filename = "test"
@@ -60,8 +60,7 @@ filename = "test"
 CSV.write(data_path, df)
 CSV.write(dates_path, DataFrame(taxon = taxa, date = dates))
 
-newick = writeTopology(TreeUtils.rtree(taxa))
-write(newick_path, newick)
+newick = read(newick_path, String)
 
 
 make_mbd(data_path, newick_path, xml_path, filename)
@@ -128,8 +127,8 @@ p_diff = k + p_res
 
 taxa = ["taxon_$i" for i = 1:n]
 
-tree = rtree(taxa)
-newick = writeTopology(tree)
+# tree = rtree(taxa)
+# newick = writeTopology(tree)
 
 rm = ResidualVarianceModel(p_res)
 fm = IntegratedFactorModel(k, p_fac)
@@ -160,7 +159,7 @@ k = 2
 p = 10
 n = length(taxa)
 data = randn(n, p)
-newick = writeTopology(rtree(taxa))
+# newick = writeTopology(rtree(taxa))
 
 bx = BEASTXMLConstructor.make_pfa_xml(data, taxa, newick, k, useHMC = false)
 BEASTXMLConstructor.save_xml("facGibbs.xml", bx)
@@ -178,7 +177,7 @@ k = 2
 p = 10
 n = length(taxa)
 data = randn(n, p)
-newick = writeTopology(rtree(taxa))
+# newick = writeTopology(rtree(taxa))
 
 bx = BEASTXMLConstructor.make_sampled_pfa_xml(data, taxa, newick, k)
 save_xml("facSampledHMC.xml", bx, change_filename=true)
