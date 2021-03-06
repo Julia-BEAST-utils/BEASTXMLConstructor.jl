@@ -3,6 +3,12 @@ uuid = "2ff12cca-58d7-407c-9ba2-24d4f684d922"
 authors = ["Gabe Hassler <gabriel.w.hassler@gmail.com> and contributors"]
 version = "0.1.0"
 
+[deps]
+LightXML = "9c8b4983-aa76-5018-a973-4c85ecc9e179"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
+UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
+
 [compat]
 julia = "1"
 

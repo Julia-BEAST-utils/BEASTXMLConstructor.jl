@@ -1,20 +1,20 @@
-function df_to_matrix(df::DataFrame) #Converts a data frame with missing values to a matrix with NaN
-    taxa = Vector{String}(df[!, :taxon])
-    n, p = size(df)
-    p = p - 1
-    nms = names(df)
+# function df_to_matrix(df::DataFrame) #Converts a data frame with missing values to a matrix with NaN
+#     taxa = Vector{String}(df[!, :taxon])
+#     n, p = size(df)
+#     p = p - 1
+#     nms = names(df)
 
-    data = fill(NaN, n, p)
-    for i = 1:p
-        for j = 1:n
-            x = df[j, nms[i + 1]]
-            if !ismissing(x)
-                data[j, i] = x
-            end
-        end
-    end
-    return taxa, data
-end
+#     data = fill(NaN, n, p)
+#     for i = 1:p
+#         for j = 1:n
+#             x = df[j, nms[i + 1]]
+#             if !ismissing(x)
+#                 data[j, i] = x
+#             end
+#         end
+#     end
+#     return taxa, data
+# end
 
 
 

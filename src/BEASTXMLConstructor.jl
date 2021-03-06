@@ -23,8 +23,7 @@ export BEASTXMLElement,
        set_file_logEvery
 
 
-using LightXML, LinearAlgebra, DataFrames, UnPack
-using BeastUtils.MatrixUtils
+using LightXML, LinearAlgebra, UnPack, StatsBase
 
 include("BeastNames.jl")
 bn = BeastNames

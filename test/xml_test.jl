@@ -20,7 +20,8 @@ function make_mbd(data_path::String, newick_path::String, xml_path::String,
 
     newick = read(newick_path, String)
 
-    taxa, data = BEASTXMLConstructor.df_to_matrix(df)
+    taxa = df[!, 1]
+    data = Matrix(df[!, 2:end])
 
 
     bx = BEASTXMLConstructor.make_residual_xml(data, taxa, newick, chain_length = 100_000)

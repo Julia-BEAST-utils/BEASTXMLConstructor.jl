@@ -50,7 +50,7 @@ end
 
 function var_corrs(var::AbstractArray{Float64})
     vars = diag(var)
-    corr_mat = cov2corr(var)
+    corr_mat = cov2cor(var, sqrt.(diag(var)))
     p = size(var, 1)
     n_corrs = div(p * (p - 1), 2)
     corrs = zeros(n_corrs)
