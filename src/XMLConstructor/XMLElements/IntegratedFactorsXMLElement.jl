@@ -254,7 +254,7 @@ function set_precision(ifa::IntegratedFactorsXMLElement,
             error("Precisions must be positive.")
         end
     end
-    ifa.precision = precs
+    set_value(ifa.precision, precs)
 end
 
 function get_loadings_scale(ifm::IntegratedFactorsXMLElement)

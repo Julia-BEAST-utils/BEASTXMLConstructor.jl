@@ -440,7 +440,8 @@ function make_sampled_pfa_xml(data::Matrix{Float64}, taxa::Vector{<:AbstractStri
     if_el.loadings_prior = multiplicative_prior
 
     set_shrinkage_mults!(if_el, scales = mult_scales, shapes = mult_shapes,
-                         set_values = true)
+                         set_scale = true,
+                         set_mults=true)
 
     traitLikelihood_el = TraitLikelihoodXMLElement(MBD_el, treeModel_el, if_el)
     add_child(beastXML, traitLikelihood_el)

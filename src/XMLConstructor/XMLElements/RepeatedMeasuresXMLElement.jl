@@ -7,6 +7,7 @@ mutable struct RepeatedMeasuresXMLElement <: ModelExtensionXMLElement
     trait_name::String
     tp_name::String
     standardize_traits::Bool
+    id::String
 
 
     function RepeatedMeasuresXMLElement(treeModel_el::TreeModelXMLElement;
@@ -19,8 +20,12 @@ mutable struct RepeatedMeasuresXMLElement <: ModelExtensionXMLElement
         wishart_prior = WishartPriorXMLElement(precision)
         return new(nothing, precision, wishart_prior,
                    treeModel_el,
-                   trait_ind, trait_name, tp_name, true)
+                   trait_ind, trait_name, tp_name, true, bn.DEFAULT_RM_NAME)
     end
+end
+
+function name(::RepeatedMeasuresXMLElement)
+    return bn.REPEATED_MEASURES
 end
 
 function make_xmlelement(rm::ResidualVarianceModel, tm::TreeModelXMLElement;
@@ -34,7 +39,7 @@ function make_xml(rm_el::RepeatedMeasuresXMLElement)
 
     # repeatedMeasures xml element
     el = new_element(bn.REPEATED_MEASURES)
-    attrs = [(bn.ID, bn.DEFAULT_RM_NAME), (bn.TRAIT_NAME, rm_el.trait_name)]
+    attrs = [(bn.ID, rm_el.id), (bn.TRAIT_NAME, rm_el.trait_name)]
     if rm_el.standardize_traits
         set_attribute(el, bn.STANDARDIZE, bn.TRUE)
     end
