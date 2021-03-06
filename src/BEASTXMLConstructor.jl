@@ -24,7 +24,6 @@ export BEASTXMLElement,
 
 
 using LightXML, LinearAlgebra, DataFrames, UnPack
-import BeastUtils.TreeUtils
 using BeastUtils.MatrixUtils
 
 include("BeastNames.jl")
