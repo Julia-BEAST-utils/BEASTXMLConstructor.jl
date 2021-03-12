@@ -96,7 +96,7 @@ end
 
 function make_orthogonal_pfa_xml(data::Matrix{Float64}, taxa::Vector{T},
                                  newick::String, k::Int;
-                                 shrinkage::Float64 = 3e1,
+                                 shrinkage::Float64 = 5e1,
                                  shrink_first::Bool = false,
                                  fix_first::Bool = true,
                                  chain_length::Int=100,
@@ -130,13 +130,13 @@ function make_orthogonal_pfa_xml(data::Matrix{Float64}, taxa::Vector{T},
         add_child(beastXML, fol_el)
     end
 
-    mult_vals = [1.0 for i = 1:k]
     mult_shapes = [shrinkage for i = 1:k]
     mult_scales = ones(k)
+    mult_vals = mult_shapes .* mult_scales
 
     if !shrink_first
         mult_vals[1] = 1.0
-        mult_shapes[1] = 1.0
+        mult_shapes[1] = 1.0 / sqrt(size(data, 2))
     end
 
     mults = Parameter(mult_vals, "mults")
@@ -159,6 +159,10 @@ function make_orthogonal_pfa_xml(data::Matrix{Float64}, taxa::Vector{T},
                                 loadings_prior)
 
     if_el.loadings_prior = multiplicative_prior
+
+    set_shrinkage_mults!(if_el, scales = mult_scales, shapes = mult_shapes,
+    set_scale = true,
+    set_mults=true)
 
     traitLikelihood_el = TraitLikelihoodXMLElement(mbd_el, treeModel_el, if_el)
     add_child(beastXML, traitLikelihood_el)

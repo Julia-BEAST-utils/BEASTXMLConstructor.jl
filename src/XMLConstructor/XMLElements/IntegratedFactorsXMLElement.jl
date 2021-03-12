@@ -269,8 +269,8 @@ end
 
 function get_loadings(ifm::IntegratedFactorsXMLElement)
     loadings = ifm.loadings
-    if typeof(loadings) <: ScaledOrthogonalMatrix
-        return loadings.U
-    end
+    # if typeof(loadings) <: ScaledOrthogonalMatrix
+    #     return loadings.U
+    # end
     return loadings
 end
