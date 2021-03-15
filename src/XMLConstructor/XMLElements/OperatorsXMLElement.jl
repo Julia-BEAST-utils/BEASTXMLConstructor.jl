@@ -235,3 +235,7 @@ function make_xml(ro::RejectionOperator)
     ro.el = el
     return el
 end
+
+function get_parameter(ro::RejectionOperator)
+    return get_parameter(ro.operator)
+end
