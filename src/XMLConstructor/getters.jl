@@ -52,8 +52,20 @@ function get_timer(bx::BEASTXMLElement)
     return find_element(bx, TimerXMLElement)
 end
 
-function get_loadings_op(bx::BEASTXMLElement)
+function get_loadings_op(bx::BEASTXMLElement; component::String = "")
     loadings = get_loadings(bx)
+    if typeof(loadings) <: ScaledOrthogonalMatrix
+        if component == "scale"
+            loadings = loadings.scale
+        elseif component == "matrix"
+            loadings = loadings.U
+        else
+            throw(ArgumentError("The loadings is a " * name(loadings) *
+                " with components \"scale\" and \"matrix\"." *
+                " You have set component=\"$component\"."))
+        end
+    end
+
     ops = get_operators(bx)
     for op in ops
         if get_parameter(op) === loadings
