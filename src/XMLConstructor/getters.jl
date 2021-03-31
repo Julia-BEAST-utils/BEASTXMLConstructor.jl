@@ -93,15 +93,26 @@ function get_loadings_scale(bx::BEASTXMLElement)
     return get_loadings_scale(ifm)
 end
 
-function get_loadings(bx::BEASTXMLElement)
+function get_factor_model(bx::BEASTXMLElement)
     fac_models = [IntegratedFactorsXMLElement, LatentFactorModelXMLElement]
-    fac_model = nothing
     for model in fac_models
         fac_model = find_element(bx, model)
         if !isnothing(fac_model)
-            break
+            return fac_model
         end
     end
+
+    return nothing
+end
+
+function get_loadings(bx::BEASTXMLElement)
+    fac_model = get_factor_model(bx)
     loadings = get_loadings(fac_model)
     return loadings
+end
+
+function get_factor_precisions(bx::BEASTXMLElement)
+    fac_model = get_factor_model(bx)
+    precs = get_precision(fac_model)
+    return precs
 end

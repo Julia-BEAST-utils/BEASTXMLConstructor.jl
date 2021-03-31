@@ -9,16 +9,18 @@ mutable struct FactorLogPredictiveDensity <: MyXMLElement
     function FactorLogPredictiveDensity(
                 intfac::IntegratedFactorsXMLElement,
                 like::TraitLikelihoodXMLElement;
-                trait_ind::Int = 2)
+                trait_name::String = bn.DEFAULT_TRAIT_NAME)
 
-        return new(nothing, nothing, nothing, intfac, like, trait_ind)
+        name_ind = findfirst(isequal(trait_name), intfac.treeModel.node_traits)
+
+        return new(nothing, nothing, nothing, intfac, like, name_ind)
     end
 end
 
 function make_xml(lpd::FactorLogPredictiveDensity)
 
     intfac = copy(lpd.intfac)
-    intfac.tree_trait_ind = lpd.trait_ind # TODO: assumes only two traits
+    intfac.tree_trait_ind = lpd.trait_ind
     like = copy(lpd.like)
     trait_name = intfac.treeModel.node_traits[intfac.tree_trait_ind]
     intfac.id = "$(trait_name).factorLikelihood"

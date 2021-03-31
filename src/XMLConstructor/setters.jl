@@ -53,6 +53,12 @@ function set_loadings(bx::BEASTXMLElement, L::AbstractArray{Float64, 2})
     set_mat!(loadings, L)
 end
 
+function set_factor_precisions(bx::BEASTXMLElement, precisions::AbstractArray{Float64, 1})
+    precs = get_factor_precisions(bx)
+    set_value(precs, precisions)
+end
+
+
 function set_muliplicative_gamma_indices(bx::BEASTXMLElement, inds::Vector{Int})
     op = get_multiplicative_gamma_op(bx)
     set_indices!(op, inds)

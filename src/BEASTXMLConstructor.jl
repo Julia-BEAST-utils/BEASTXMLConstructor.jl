@@ -10,6 +10,7 @@ export BEASTXMLElement,
        set_mbd_precision,
        set_residual_precision,
        set_loadings,
+       set_factor_precisions,
        DiffusionModel,
        ResidualVarianceModel,
        IntegratedFactorModel,
@@ -55,14 +56,14 @@ end
 
 function MCMCOptions(;
                      chain_length::Int = 10_000,
-                     file_log_every::Int = maximum(1, div(chain_length, 1_000)),
-                     screen_log_every::Int = file_log_every,
+                     file_log_every::Int = max(1, div(chain_length, 1_000)),
+                     screen_log_every::Int = max(1, div(chain_length, 100)),
                      likelihood_check_count::Int = -1)
 
     if likelihood_check_count == -1
         check_count = div(chain_length, 10)
-        check_count = maximum(check_count, 100)
-        check_count = minimum(check_count, 1000)
+        check_count = max(check_count, 100)
+        check_count = min(check_count, 1000)
     else
         check_count = likelihood_check_count
     end

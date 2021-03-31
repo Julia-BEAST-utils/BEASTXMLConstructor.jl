@@ -49,8 +49,7 @@ end
 
 
 function set_values(src::Vector{Float64}, dest::Vector{Float64})
-    @show src
-    @show dest
+
     if length(src) > 0
         if length(src) == length(dest) - 1
             dest[2:end] .= src
