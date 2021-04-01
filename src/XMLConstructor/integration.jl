@@ -18,6 +18,18 @@ function get_priors(el::TextXMLElement)
     return [el.el]
 end
 
+function get_id(el::TextXMLElement)
+    id = attribute(el.el, bn.ID)
+    if isnothing(id)
+        id = attribute(el.el, bn.IDREF)
+    end
+    if isnothing(id)
+        error("no id or idref")
+    end
+
+    return id
+end
+
 
 ################################################################################
 ## Build from existing xml
@@ -82,8 +94,9 @@ end
 struct ParsedMCMCXMLElement <: MyXMLElement
     priors::Vector{TextXMLElement}
     likelihoods::Vector{TextXMLElement}
-    file_loggables::Vector{TextXMLElement}
+    file_log::TextXMLElement
     tree_log::TextXMLElement
+    file_loggables::Vector{TextXMLElement}
 end
 
 
@@ -95,16 +108,19 @@ function parse_mcmc(el::XMLElement)
     like_el = find_element(j_el, bn.LIKELIHOOD)
     likes = [TextXMLElement(cel) for cel in collect(child_elements(like_el))]
 
+    file_log = nothing
     log_els = el[bn.LOG]
     file_loggables = nothing
     for lg in log_els
         id = get_id(lg)
         if id == "fileLog"
+            set_attribute(lg, bn.ID, "fileLogSequence")
+            file_log = TextXMLElement(lg)
             c_els = child_elements(lg)
             file_loggables = TextXMLElement[]
             ind = 1
             for el in c_els
-                if ind > 3
+                if ind > 3 #first thre are alwasy posterior, likelihood, prior
                     push!(file_loggables, TextXMLElement(el))
                 end
                 ind += 1
@@ -120,7 +136,7 @@ function parse_mcmc(el::XMLElement)
     post_el = new_child(tree_log.el, bn.POSTERIOR)
     set_attribute(post_el, bn.IDREF, bn.POSTERIOR)
 
-    return ParsedMCMCXMLElement(priors, likes, file_loggables, tree_log)
+    return ParsedMCMCXMLElement(priors, likes, file_log, tree_log, file_loggables)
 end
 
 
@@ -146,7 +162,7 @@ function findall_name(bx::BEASTXMLElement, nm::String)
     return findall(x -> name(x) == nm, bx.components)
 end
 
-function merge_xml!(traitxml::BEASTXMLElement, seqxml::BEASTXMLElement)
+function merge_xml!(traitxml::BEASTXMLElement, seqxml::BEASTXMLElement; separate_logs::Bool = true)
 
     # merge taxa
     tx_trait = find_element(traitxml, DataXMLElement)
@@ -175,11 +191,11 @@ function merge_xml!(traitxml::BEASTXMLElement, seqxml::BEASTXMLElement)
 
     seqmc = find_element(seqxml, ParsedMCMCXMLElement)
     traitmc = find_element(traitxml, MCMCXMLElement)
-    merge_mcmc!(traitmc, seqmc)
+    merge_mcmc!(traitmc, seqmc, separate_logs = separate_logs)
 
-    display(traitxml)
-    add_loggables(traitxml, LoggablesXMLElement(seqmc.file_loggables))
-    display(traitxml)
+    # display(traitxml)
+    # add_loggables(traitxml, LoggablesXMLElement(seqmc.file_loggables))
+    # display(traitxml)
     # error()
 
     newick_el = find_element(traitxml, NewickXMLElement)

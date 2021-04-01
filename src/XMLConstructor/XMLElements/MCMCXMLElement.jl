@@ -1,6 +1,27 @@
+
+mutable struct CompoundLikelihood <: MyXMLElement
+    el::XMLOrNothing
+    id::String
+    likelihoods::Vector{<:MyXMLElement}
+    already_made::Vector{Bool}
+    function CompoundLikelihood(id::String, likelihoods::Vector{<:MyXMLElement};
+                                already_made::Vector{Bool} = fill(true, length(likelihoods)))
+        return new(nothing, id, likelihoods, already_made)
+    end
+end
+
+function name(cl::CompoundLikelihood)
+    return bn.LIKELIHOOD
+end
+
+function get_loggables(cl::CompoundLikelihood)
+    make_xml(cl)
+    return cl.el
+end
+
 mutable struct MCMCXMLElement <: MyXMLElement
     el::XMLOrNothing
-    likelihoods::Vector{<:MyXMLElement}
+    likelihoods::CompoundLikelihood
     priors::Vector{<:MyXMLElement}
     operators::OperatorsXMLElement
     chain_length::Int
@@ -22,7 +43,7 @@ mutable struct MCMCXMLElement <: MyXMLElement
         lg_el = LoggablesXMLElement([mbd_el, rm_el], [true, true])
         attrs = Dict(bn.AUTO_OPTIMIZE => bn.TRUE)
 
-        return new(nothing, [tl_el], [mbd_el, rm_el], os_el, chain_length,
+        return new(nothing, [tl_el], CompoundLikelihood("likelihood", [mbd_el, rm_el]), os_el, chain_length,
                     fle, sle, lg_el, filename, true, attrs,
                     MyXMLElement[])
     end
@@ -39,7 +60,7 @@ mutable struct MCMCXMLElement <: MyXMLElement
         attrs = Dict(bn.AUTO_OPTIMIZE => bn.TRUE)
 
 
-        return new(nothing, [tl_el], [mbd_el, rm_el], os_el, chain_length,
+        return new(nothing, [tl_el], CompoundLikelihood("likelihood", [mbd_el, rm_el]), os_el, chain_length,
                     fle, sle, loggables, filename, true, attrs,
                     MyXMLElement[])
     end
@@ -54,7 +75,7 @@ mutable struct MCMCXMLElement <: MyXMLElement
         lg_el = LoggablesXMLElement([mbd_el, if_el], [true, true])
         attrs = Dict(bn.AUTO_OPTIMIZE => bn.TRUE)
 
-        return new(nothing, [tl_el, if_el], [mbd_el, if_el], os_el, chain_length,
+        return new(nothing, CompoundLikelihood("likelihood", [tl_el, if_el]), [mbd_el, if_el], os_el, chain_length,
                     fle, sle, lg_el, filename, true, attrs,
                     MyXMLElement[])
     end
@@ -90,13 +111,8 @@ function make_xml(mc_el::MCMCXMLElement)
     for prior in mc_el.priors
         add_ref_els(prior_el, get_priors(prior))
     end
-
-    like_el = new_child(posterior_el, bn.LIKELIHOOD)
-    set_attribute(like_el, bn.ID, bn.LIKELIHOOD)
-    for like in mc_el.likelihoods
-        make_xml(like)
-        add_ref_el(like_el, like.el)
-    end
+    like_el = make_xml(mc_el.likelihoods)
+    add_child(posterior_el, like_el)
 
     add_ref_el(el, mc_el.operators.el)
 
@@ -115,14 +131,16 @@ function make_xml(mc_el::MCMCXMLElement)
         set_attributes(file_log_el, attrs)
 
         file_logs = Vector{XMLElement}(undef, 0)
-
+        @show typeof(mc_el.loggables.els[end])
         for myxml in mc_el.loggables.els
             file_logs = [file_logs; get_loggables(myxml)]
+            @show typeof.(file_logs)
         end
         # file_logs = [get_loggable(loggable_el) for loggable_el in mc_el.loggables.els]
 
         final_file_logs = [default_logs; file_logs]
         for log in final_file_logs
+            @show typeof(log)
             add_ref_el(file_log_el, log)
         end
 
@@ -161,12 +179,50 @@ function set_filename(mcmc::MCMCXMLElement, filename::String)
     mcmc.filename = filename
 end
 
-function merge_mcmc!(mcmc::MCMCXMLElement, pmcmc::ParsedMCMCXMLElement)
-    mcmc.likelihoods = [mcmc.likelihoods; pmcmc.likelihoods]
+function merge_mcmc!(mcmc::MCMCXMLElement, pmcmc::ParsedMCMCXMLElement;
+                     separate_logs::Bool = false)
+
+    trait_id = "traitLikelihoods"
+    trait_likelihood = mcmc.likelihoods
+    trait_likelihood.id = trait_id
+
+
+    mcmc.likelihoods = CompoundLikelihood("likelihood",
+                            [mcmc.likelihoods; pmcmc.likelihoods],
+                            already_made = [false, true])
+    add_loggable(mcmc.loggables, trait_likelihood)
+
     mcmc.priors = [mcmc.priors; pmcmc.priors]
+
+    if separate_logs
+        push!(mcmc.extras, pmcmc.file_log)
+    else
+        push!(mcmc.loggables, LoggablesXMLElement(pmcmc.file_loggables))
+    end
+
     push!(mcmc.extras, pmcmc.tree_log)
 end
 
 function add_prior!(mcmc::MCMCXMLElement, xml::MyXMLElement)
     push!(mcmc.priors, xml)
 end
+
+
+function make_xml(cl::CompoundLikelihood)
+    el = new_element(bn.LIKELIHOOD)
+    set_attribute(el, bn.ID, cl.id)
+    for i = 1:length(cl.likelihoods)
+        if cl.already_made[i]
+            @show get_id(cl.likelihoods[i])
+            @show typeof(cl.likelihoods[i])
+            add_ref_el(el, cl.likelihoods[i])
+        else
+            c_el = make_xml(cl.likelihoods[i])
+            add_child(el, c_el)
+        end
+    end
+    cl.el = el
+    return el
+end
+
+
