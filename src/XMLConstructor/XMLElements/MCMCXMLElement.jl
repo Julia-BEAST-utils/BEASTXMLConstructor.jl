@@ -131,16 +131,13 @@ function make_xml(mc_el::MCMCXMLElement)
         set_attributes(file_log_el, attrs)
 
         file_logs = Vector{XMLElement}(undef, 0)
-        @show typeof(mc_el.loggables.els[end])
         for myxml in mc_el.loggables.els
             file_logs = [file_logs; get_loggables(myxml)]
-            @show typeof.(file_logs)
         end
         # file_logs = [get_loggable(loggable_el) for loggable_el in mc_el.loggables.els]
 
         final_file_logs = [default_logs; file_logs]
         for log in final_file_logs
-            @show typeof(log)
             add_ref_el(file_log_el, log)
         end
 
@@ -213,8 +210,6 @@ function make_xml(cl::CompoundLikelihood)
     set_attribute(el, bn.ID, cl.id)
     for i = 1:length(cl.likelihoods)
         if cl.already_made[i]
-            @show get_id(cl.likelihoods[i])
-            @show typeof(cl.likelihoods[i])
             add_ref_el(el, cl.likelihoods[i])
         else
             c_el = make_xml(cl.likelihoods[i])
