@@ -103,7 +103,8 @@ function make_orthogonal_pfa_xml(data::Matrix{Float64}, taxa::Vector{T},
                                  timing::Bool=false,
                                  log_factors::Bool=false,
                                  rotate_prior::Bool=false,
-                                 force_ordered::Bool=false,
+                                 force_ordered::Bool = false,
+                                 forced_spacing::Float64=1.0,
                                  fle::Int=10,
                                  sle::Int=100) where T <: AbstractString
 
@@ -182,7 +183,8 @@ function make_orthogonal_pfa_xml(data::Matrix{Float64}, taxa::Vector{T},
     scale_op = LoadingsScaleGibbsOperator(if_el, traitLikelihood_el)
 
     if force_ordered
-        scale_op = RejectionOperator(scale_op, "descendingAbsoluteValueSpaced")
+        scale_op = RejectionOperator(scale_op,
+                            DescendingAndSpacedCondition(forced_spacing))
     end
 
 

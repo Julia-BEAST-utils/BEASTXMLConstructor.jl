@@ -217,9 +217,9 @@ end
 mutable struct RejectionOperator <: OperatorXMLElement
     el::XMLOrNothing
     operator::OperatorXMLElement
-    condition::String
+    condition::Union{String, MyXMLElement}
 
-    function RejectionOperator(op::OperatorXMLElement, condition::String)
+    function RejectionOperator(op::OperatorXMLElement, condition::Union{String, MyXMLElement})
         return new(nothing, op, condition)
     end
 end
@@ -230,12 +230,36 @@ end
 
 function make_xml(ro::RejectionOperator)
     el = new_element(name(ro))
-    set_attribute(el, bn.CONDITION, ro.condition)
+    add_condition(el, ro.condition)
     add_child(el, make_xml(ro.operator))
     ro.el = el
     return el
 end
 
+function add_condition(el::XMLElement, condition::String)
+    set_attribute(el, bn.CONDITION, condition)
+end
+
+function add_condition(el::XMLElement, condition::MyXMLElement)
+    c_el = make_xml(condition)
+    add_child(el, c_el)
+end
+
 function get_parameter(ro::RejectionOperator)
     return get_parameter(ro.operator)
+end
+
+mutable struct DescendingAndSpacedCondition <: MyXMLElement
+    el::XMLOrNothing
+    spacing::Float64
+    function DescendingAndSpacedCondition(spacing::Float64)
+        return new(nothing, spacing)
+    end
+end
+
+function make_xml(dsc::DescendingAndSpacedCondition)
+    el = new_element(bn.DESCENDING_AND_SPACED)
+    set_attribute(el, bn.SPACING, dsc.spacing)
+    dsc.el = el
+    return el
 end
