@@ -6,7 +6,7 @@ function name(el::TextXMLElement)
     return name(el.el)
 end
 
-function make_xml(el::TextXMLElement)
+function make_xml(::TextXMLElement)
     # do nothing
 end
 
@@ -44,13 +44,13 @@ end
 
 # const SPECIAL_PARSERS = Dict(bn.TAXA => parse_taxa)
 
+const DO_NOT_PARSE = ["coalescentSimulator", bn.TREE_MODEL, "rescaledTree"]
+
 function parse_element(el::XMLElement)
     nm = name(el)
     if nm == bn.TAXA
         return parse_taxa(el)
-    elseif nm == "coalescentSimulator"
-        return nothing
-    elseif nm == bn.TREE_MODEL
+    elseif nm in DO_NOT_PARSE
         return nothing
     elseif nm == bn.OPERATORS
         return parse_operators(el)
@@ -137,6 +137,7 @@ end
 # This will only work with some very specific circumnstances
 #   1. Both have some el <: AbstractDataXMLElement
 
+
 function findfirst_name(bx::BEASTXMLElement, nm::String)
     return findfirst(x -> name(x) == nm, bx.components)
 end
@@ -175,10 +176,12 @@ function merge_xml!(traitxml::BEASTXMLElement, seqxml::BEASTXMLElement)
     seqmc = find_element(seqxml, ParsedMCMCXMLElement)
     traitmc = find_element(traitxml, MCMCXMLElement)
     merge_mcmc!(traitmc, seqmc)
+
+    display(traitxml)
     add_loggables(traitxml, LoggablesXMLElement(seqmc.file_loggables))
+    display(traitxml)
+    # error()
 
     newick_el = find_element(traitxml, NewickXMLElement)
     newick_el.fix_tree = false
-
-
 end

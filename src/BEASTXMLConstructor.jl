@@ -258,7 +258,7 @@ function add_loggables(bx::BEASTXMLElement, loggables::LoggablesXMLElement)
         ind = findfirst(x -> x === mcmc, bx.components)
         mcmc_loggables = mcmc.loggables
         push!(mcmc_loggables, loggables)
-        insert!(bx.components, ind, mcmc_loggables)
+        # insert!(bx.components, ind, mcmc_loggables)
     elseif length(old_loggables) == 1
         push!(old_loggables[1], loggables)
     else

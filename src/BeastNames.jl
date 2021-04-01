@@ -301,5 +301,7 @@ const INDEPENDENT_NORMAL_DISTRIBUTION = "independentNormalDistributionModel"
 
 const REJECTION_OPERATOR = "rejectionOperator"
 const CONDITION = "condition"
+const DESCENDING_AND_SPACED = "descendingAndSpaced"
+const SPACING = "spacing"
 
 end
