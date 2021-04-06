@@ -258,4 +258,32 @@ function make_xml(mp::MaskedParameter)
     return el
 end
 
+################################################################################
+## compound parameter
+################################################################################
 
+mutable struct CompoundParameter <: MyXMLElement
+    el::XMLOrNothing
+    parameters::Vector{<:MyXMLElement}
+    id::String
+
+    function CompoundParameter(parameters::Vector{<:MyXMLElement}, id::String)
+        return new(nothing, parameters, id)
+    end
+end
+
+function name(::CompoundParameter)
+    return bn.COMPOUND_PARAMETER
+end
+
+function make_xml(cp::CompoundParameter)
+    el = new_element(name(cp))
+    for param in cp.parameters
+        p_el = make_xml(param)
+        add_child(el, p_el)
+    end
+
+    set_attribute(el, bn.ID, cp.id)
+    cp.el = el
+    return el
+end

@@ -304,4 +304,23 @@ const CONDITION = "condition"
 const DESCENDING_AND_SPACED = "descendingAndSpaced"
 const SPACING = "spacing"
 
+const GENERAL_DATA_TYPE = "generalDataType"
+const STATE = "state"
+const CODE = "code"
+
+const ALIGNMENT = "alignment"
+const SEQUENCE = "sequence"
+const PATTERNS = "patterns"
+
+const FROM = "from"
+const UNIQUE = "unique"
+
+const ORDERED_LATENT_LIABILITY = "orderedLatentLiabilityLikelihood"
+const TIP_TRAIT = "tipTrait"
+const THRESHOLD = "threshold"
+const NUM_CLASSES = "numClasses"
+
+const COMPOUND_PARAMETER = "compoundParameter"
+
+const EXTENDED_GIBBS_OPERATOR = "extendedLatentLiabilityGibbsOperator"
 end

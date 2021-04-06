@@ -43,7 +43,7 @@ mutable struct MCMCXMLElement <: MyXMLElement
         lg_el = LoggablesXMLElement([mbd_el, rm_el], [true, true])
         attrs = Dict(bn.AUTO_OPTIMIZE => bn.TRUE)
 
-        return new(nothing, [tl_el], CompoundLikelihood("likelihood", [mbd_el, rm_el]), os_el, chain_length,
+        return new(nothing, CompoundLikelihood("likelihood", [tl_el]), [mbd_el, rm_el], os_el, chain_length,
                     fle, sle, lg_el, filename, true, attrs,
                     MyXMLElement[])
     end
