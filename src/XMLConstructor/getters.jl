@@ -75,6 +75,16 @@ function get_loadings_op(bx::BEASTXMLElement; component::String = "")
     error("No loadings operator.")
 end
 
+function get_op_by_parameter(bx::BEASTXMLElement, parameter::MyXMLElement)
+    ops = get_operators(bx)
+    for op in ops
+        if get_parameter(op) === parameter
+            return op
+        end
+    end
+    error("cannot find operator for parameter with id '$(get_id(parameter))'")
+end
+
 function get_multiplicative_gamma_op(bx::BEASTXMLElement)
     ops = get_operators(bx)
     for op in ops

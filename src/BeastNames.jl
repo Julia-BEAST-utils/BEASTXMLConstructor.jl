@@ -323,4 +323,8 @@ const NUM_CLASSES = "numClasses"
 const COMPOUND_PARAMETER = "compoundParameter"
 
 const EXTENDED_GIBBS_OPERATOR = "extendedLatentLiabilityGibbsOperator"
+
+const N_TRAITS = "NTraits"
+const N_DATA = "NData"
+
 end

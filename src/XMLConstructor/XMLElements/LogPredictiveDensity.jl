@@ -13,25 +13,30 @@ mutable struct FactorLogPredictiveDensity <: MyXMLElement
 
         name_ind = findfirst(isequal(trait_name), intfac.treeModel.node_traits)
 
+        intfac = copy(intfac)
+        intfac.tree_trait_ind = name_ind
+        like = copy(like)
+        like.attrs[bn.ID] = "$(trait_name).treeLikelihood"
+        intfac.id = "$(trait_name).factorLikelihood"
+        intfac.standardize_traits = false
+
+
+        like.extension_el = intfac
+
         return new(nothing, nothing, nothing, intfac, like, name_ind)
     end
 end
 
 function make_xml(lpd::FactorLogPredictiveDensity)
 
-    intfac = copy(lpd.intfac)
-    intfac.tree_trait_ind = lpd.trait_ind
-    like = copy(lpd.like)
-    trait_name = intfac.treeModel.node_traits[intfac.tree_trait_ind]
-    intfac.id = "$(trait_name).factorLikelihood"
-    intfac.standardize_traits = false
+    @unpack intfac, like = lpd
     fac_el = make_xml(intfac, reference_precision = true)
     lpd.fac_el = fac_el
+    trait_name = get_trait_name(intfac)
 
 
     like.extension_el = intfac
     lpd.like_el = make_xml(like)
-    set_id!(lpd.like_el, "$(trait_name).treeLikelihood")
 
     cl_el = new_element(bn.LIKELIHOOD)
     set_id!(cl_el, "$trait_name.likelihood")

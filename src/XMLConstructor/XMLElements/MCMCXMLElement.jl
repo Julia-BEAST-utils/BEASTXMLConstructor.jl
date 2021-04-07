@@ -19,6 +19,11 @@ function get_loggables(cl::CompoundLikelihood)
     return cl.el
 end
 
+function add_likelihood!(cp::CompoundLikelihood, xml::MyXMLElement; already_made::Bool = true)
+    push!(cp.likelihoods, xml)
+    push!(cp.already_made, already_made)
+end
+
 mutable struct MCMCXMLElement <: MyXMLElement
     el::XMLOrNothing
     likelihoods::CompoundLikelihood
@@ -202,6 +207,14 @@ end
 
 function add_prior!(mcmc::MCMCXMLElement, xml::MyXMLElement)
     push!(mcmc.priors, xml)
+end
+
+function add_likelihood!(mcmc::MCMCXMLElement, xml::MyXMLElement)
+    add_likelihood!(mcmc.likelihoods, xml)
+end
+
+function add_loggable!(mcmc::MCMCXMLElement, xml::MyXMLElement)
+    add_loggable(mcmc.loggables, xml)
 end
 
 

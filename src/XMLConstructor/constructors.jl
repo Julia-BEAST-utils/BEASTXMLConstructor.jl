@@ -79,7 +79,7 @@ function make_pfa_xml(data::Matrix{Float64}, taxa::Vector{T},
     mcmc_el.screen_logEvery = sle
 
     if log_factors
-        add_loggable(mcmc_el.loggables, traitLog_el)
+        add_loggable(mcmc_el.loggables, traitLog_el, already_made = true)
     end
 
     if timing

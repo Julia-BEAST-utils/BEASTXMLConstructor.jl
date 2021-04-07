@@ -64,6 +64,12 @@ function set_muliplicative_gamma_indices(bx::BEASTXMLElement, inds::Vector{Int})
     set_indices!(op, inds)
 end
 
+function set_factor_precision_indices(bx::BEASTXMLElement, inds::Vector{Int})
+    precisions = get_factor_precisions(bx)
+    op = get_op_by_parameter(bx, precisions)
+    set_indices!(op, inds)
+end
+
 function set_options!(bx::BEASTXMLElement, options::MCMCOptions)
     mcmc = get_mcmc(bx)
     set_options!(mcmc, options)

@@ -58,6 +58,7 @@ end
 
 function make_xml(al::Alignment)
     el = new_element(name(al))
+    set_attribute(el, bn.ID, al.id)
     add_ref_el(el, al.data_type)
     for i = 1:size(al.sequences, 1)
         seq_el = new_child(el, bn.SEQUENCE)
@@ -148,7 +149,7 @@ function OrderedLatentLiability(patterns::Patterns,
         for ind in need_thresh
             p_id = "$trait_name$ind.threshold"
             thresholds = default_thresholds(n_states[ind])
-            push!(params, Parameter(thresholds, p_id))
+            push!(params, Parameter(thresholds, p_id, lower=0.0))
         end
     end
 
@@ -172,10 +173,15 @@ function make_xml(oll::OrderedLatentLiability)
     thresh_el = new_child(el, bn.THRESHOLD)
     add_child(thresh_el, make_xml(threshold))
 
-    classes_el = new_element(bn.NUM_CLASSES)
+    classes_el = new_child(el, bn.NUM_CLASSES)
     classes = get_num_classes(patterns)
     class_param = Parameter(Float64.(classes))
     add_child(classes_el, make_xml(class_param))
+
+    set_attribute(el, bn.N_TRAITS, string(length(classes)))
+    set_attribute(el, bn.N_DATA, "1")
+    set_attribute(el, bn.ID, oll.id)
+
 
     oll.el = el
     return el
@@ -221,7 +227,7 @@ end
 ################################################################################
 
 function default_thresholds(states::Int)
-    return convert.(Float64, collect(0:(states - 2)))
+    return convert.(Float64, collect(1:(states - 2)))
 end
 
 function find_state(x::Float64, thresholds::Vector{Float64})
@@ -258,12 +264,19 @@ function data_to_alignment(data::Matrix{Float64}, states::Vector{Int};
                     sequences[i, j] = find_state(data[i, j], thresholds[j])
                 end
             else
-                sequences[:, j] .= Int.(data[:, j])
+                for i = 1:n
+                    if isnan(data[i, j])
+                        sequences[i, j] = MISSING_SEQUENCE
+                    else
+                        sequences[i, j] = Int(data[i, j])
+                    end
+                end
             end
         end
     end
 
     return sequences
+
 end
 
 ################################################################################
@@ -280,15 +293,51 @@ function add_latent_liability(bx::BEASTXMLElement, trait_names::Vector{String}, 
     for nm in trait_names
         latent_liablity = latent_liablity_elements(bx, nm, states, gdt)
     end
-
-
 end
+
+function add_latent_liability(bx::BEASTXMLElement, discrete_inds::Vector{Int})
+
+    if length(discrete_inds) == 0
+        return nothing
+    end
+
+    data_el = find_element(bx, DataXMLElement)
+    @unpack data_mats = data_el
+    ps = [size(x, 2) for x in data_mats]
+    @assert length(unique(ps)) == 1
+    p = ps[1]
+    states = ones(Int, p)
+
+    for data in data_el.data_mats
+        for ind in discrete_inds
+            ind_states = setdiff(unique(@view data[:, ind]), NaN)
+            states[ind] = max(Int(maximum(ind_states)) + 1, states[ind])
+        end
+    end
+
+    set_factor_precision_indices(bx, setdiff(1:p, discrete_inds))
+
+    add_latent_liability(bx, data_el.trait_names, states)
+end
+
+
 
 function latent_liablity_elements(bx::BEASTXMLElement, trait_name::String, states::Vector{Int}, gdt::GeneralDataType)
 
     data_el = find_element(bx, DataXMLElement)
     treeModel = find_element(bx, TreeModelXMLElement)
     trait_likelihood = find_element(bx, TraitLikelihoodXMLElement)
+    int_fac = trait_likelihood.extension_el
+
+    if BEASTXMLConstructor.get_trait_name(int_fac) != trait_name
+        flpd = find_element(bx, FactorLogPredictiveDensity)
+        trait_likelihood = flpd.like
+    end
+
+
+    @assert BEASTXMLConstructor.get_trait_name(trait_likelihood.extension_el) == trait_name
+
+
 
     taxa = data_el.taxa
     trait_ind = findfirst(isequal(trait_name), data_el.trait_names)
@@ -303,6 +352,11 @@ function latent_liablity_elements(bx::BEASTXMLElement, trait_name::String, state
     likelihood = OrderedLatentLiability(pattern, treeModel, id = trait_name * ".latentLiability", trait_name = param_name)
 
     operator = ExtendedLatendLiabilityOperator(trait_likelihood, likelihood)
+    thresh_ops = MyXMLElement[]
+    for param in likelihood.threshold.parameters
+        push!(thresh_ops, ScaleOperator(param))
+    end
+    # threshold_operator = ScaleOperator(likelihood.threshold)
 
     ops_ind = find_element_ind(bx, OperatorsXMLElement)
     operators = bx.components[ops_ind]
@@ -312,6 +366,14 @@ function latent_liablity_elements(bx::BEASTXMLElement, trait_name::String, state
     end
 
     push!(operators.els, operator)
+    for op in thresh_ops
+        push!(operators.els, op)
+    end
+
+    mcmc_el = find_element(bx, MCMCXMLElement)
+    BEASTXMLConstructor.add_likelihood!(mcmc_el, likelihood)
+    BEASTXMLConstructor.add_loggable(bx, likelihood.threshold, already_made = true)
+    BEASTXMLConstructor.add_loggable(bx, Parameter(Float64[], param_name), already_made = true)
 
 
 

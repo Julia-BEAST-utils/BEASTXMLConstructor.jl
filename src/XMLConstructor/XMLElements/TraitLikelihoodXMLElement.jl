@@ -40,9 +40,13 @@ function copy(x::TraitLikelihoodXMLElement)
         x.extension_el,
         x.μ,
         x.pss,
-        x.attrs,
+        copy(x.attrs),
         x.xml_name
     )
+end
+
+function get_trait_name(x::TraitLikelihoodXMLElement)
+    return x.attrs[bn.TRAIT_NAME]
 end
 
 function make_xml(tl_el::TraitLikelihoodXMLElement)

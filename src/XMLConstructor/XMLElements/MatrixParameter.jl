@@ -287,3 +287,7 @@ function make_xml(cp::CompoundParameter)
     cp.el = el
     return el
 end
+
+function get_loggables(cp::CompoundParameter)
+    return make_xml(cp)
+end

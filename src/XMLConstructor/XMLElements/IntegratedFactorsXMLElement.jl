@@ -49,6 +49,10 @@ function name(::IntegratedFactorsXMLElement)
     return bn.INTEGRATED_FACTORS
 end
 
+function get_trait_name(ifxml::IntegratedFactorsXMLElement)
+    return ifxml.treeModel.node_traits[ifxml.tree_trait_ind]
+end
+
 function make_xmlelement(model::IntegratedFactorModel, tm::TreeModelXMLElement;
                          ind::Int = 1)
     ifx = IntegratedFactorsXMLElement(tm, tip_dimension(model), trait_ind = ind)
@@ -105,7 +109,7 @@ function make_xml(ifxml::IntegratedFactorsXMLElement;
 
     el = new_element(bn.INTEGRATED_FACTORS)
     attrs = [(bn.ID, ifxml.id),
-            (bn.TRAIT_NAME, ifxml.treeModel.node_traits[ifxml.tree_trait_ind])]
+            (bn.TRAIT_NAME, get_trait_name(ifxml))]
     set_attributes(el, attrs)
 
     if ifxml.standardize_traits
