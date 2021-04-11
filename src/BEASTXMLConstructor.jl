@@ -75,8 +75,7 @@ end
 import Base.show
 
 function Base.show(io::IO, bx::BEASTXMLElement)
-    disp = "$(typeof(bx)):\n"
-    disp *= "components:"
+    disp = "$(typeof(bx)) with components:"
     for comp in bx.components
         disp *= "\n\t$(typeof(comp))"
     end

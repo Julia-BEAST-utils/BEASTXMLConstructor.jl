@@ -19,6 +19,14 @@ function LoggablesXMLElement(els::Vector{<:MyXMLElement};
     return LoggablesXMLElement(els, fill(already_made, length(els)))
 end
 
+function Base.show(io::IO, lx::LoggablesXMLElement)
+    disp = "$(typeof(lx)) with components:"
+    for i = 1:length(lx.els)
+        disp *= "\n\t$(typeof(lx.els[i])) (already_made = $(lx.already_made[i]))"
+    end
+    println(io, disp)
+end
+
 function make_xml(lg_el::LoggablesXMLElement)
     for el in lg_el.els
         make_xml(el)
