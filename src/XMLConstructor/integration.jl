@@ -15,7 +15,17 @@ function get_loggables(el::TextXMLElement)
 end
 
 function get_priors(el::TextXMLElement)
-    return [el.el]
+    return [el]
+end
+
+function add_ref_el(el::XMLElement, txt::TextXMLElement)
+    add_child(el, txt.el)
+end
+
+function add_ref_els(el::XMLElement, txts::Vector{TextXMLElement})
+    for txt in txts
+        add_ref_el(el, txt)
+    end
 end
 
 function get_id(el::TextXMLElement)
@@ -44,9 +54,12 @@ function BEASTXMLElement(xml::String)
     end
 
     bx = BEASTXMLElement()
-
+    taxa_parsed = false
     for element in child_elements(xroot)
-        el = parse_element(element)
+        el = parse_element(element, taxa_parsed = taxa_parsed)
+        if typeof(el) <: EmptyDataXMLElement
+            taxa_parsed = true
+        end
         if !isnothing(el)
             add_child(bx, el)
         end
@@ -56,11 +69,11 @@ end
 
 # const SPECIAL_PARSERS = Dict(bn.TAXA => parse_taxa)
 
-const DO_NOT_PARSE = ["coalescentSimulator", bn.TREE_MODEL, "rescaledTree"]
+const DO_NOT_PARSE = ["coalescentSimulator", bn.TREE_MODEL, "rescaledTree", bn.NEWICK, "newick"]
 
-function parse_element(el::XMLElement)
+function parse_element(el::XMLElement; taxa_parsed = false)
     nm = name(el)
-    if nm == bn.TAXA
+    if nm == bn.TAXA && !taxa_parsed
         return parse_taxa(el)
     elseif nm in DO_NOT_PARSE
         return nothing
@@ -170,8 +183,17 @@ function merge_xml!(traitxml::BEASTXMLElement, seqxml::BEASTXMLElement; separate
     tx_seq = find_element(seqxml, EmptyDataXMLElement)
     taxa_trait = tx_trait.taxa
     taxa_seq = tx_seq.taxa
-    @assert length(taxa_trait) == length(taxa_seq)
-    @assert Set(taxa_trait) == Set(taxa_seq) # TODO: more efficient?
+    if Set(taxa_trait) != Set(taxa_seq)
+        only_trait = setdiff(taxa_trait, taxa_seq)
+        only_seq = setdiff(taxa_seq, taxa_trait)
+        if length(only_seq) > 0
+            error("The following taxa are present in the sequence xml but not the data:\n\t" *
+                  join(only_seq, ' '))
+        else
+            error("The following taxa are present in the data but not the sequence xml:\n\t" *
+                  join(only_trait, ' '))
+        end
+    end
 
     seq_start = findfirst(x -> typeof(x) <: EmptyDataXMLElement, seqxml.components) + 1
 

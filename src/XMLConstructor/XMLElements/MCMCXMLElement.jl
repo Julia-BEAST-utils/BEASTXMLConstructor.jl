@@ -6,6 +6,8 @@ mutable struct CompoundLikelihood <: MyXMLElement
     already_made::Vector{Bool}
     function CompoundLikelihood(id::String, likelihoods::Vector{<:MyXMLElement};
                                 already_made::Vector{Bool} = fill(true, length(likelihoods)))
+
+        @assert length(already_made) == length(likelihoods)
         return new(nothing, id, likelihoods, already_made)
     end
 end
@@ -191,7 +193,7 @@ function merge_mcmc!(mcmc::MCMCXMLElement, pmcmc::ParsedMCMCXMLElement;
 
     mcmc.likelihoods = CompoundLikelihood("likelihood",
                             [mcmc.likelihoods; pmcmc.likelihoods],
-                            already_made = [false, true])
+                            already_made = [false; fill(true, length(pmcmc.likelihoods))])
     add_loggable(mcmc.loggables, trait_likelihood)
 
     mcmc.priors = [mcmc.priors; pmcmc.priors]
