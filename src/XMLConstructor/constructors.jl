@@ -222,7 +222,7 @@ function make_orthogonal_pfa_xml(data::Matrix{Float64}, taxa::Vector{T},
     mcmc_el.screen_logEvery = sle
 
     if log_factors
-        add_loggable(mcmc_el.loggables, traitLog_el)
+        add_loggable(mcmc_el.loggables, traitLog_el, already_made = true)
     end
 
     add_loggable(mcmc_el.loggables, if_el.loadings.U, already_made = true)
