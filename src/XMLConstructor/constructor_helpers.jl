@@ -191,3 +191,9 @@ function trait_dimensions(dm::DataModel)
     return [length(x) for x in dm.partitions]
 end
 
+function add_factor_proportion(bx::BEASTXMLElement)
+    trait_el = get_traitLikelihood(bx)
+    if_el = get_integratedFactorModel(bx)
+    fps = FactorProportionStatistic(if_el, trait_el, "factorProportion")
+    add_loggable(bx, fps, already_made = false)
+end

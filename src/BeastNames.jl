@@ -327,4 +327,6 @@ const EXTENDED_GIBBS_OPERATOR = "extendedLatentLiabilityGibbsOperator"
 const N_TRAITS = "NTraits"
 const N_DATA = "NData"
 
+const FACTOR_PROPORTION_STATISTIC = "factorProportionStatistic"
+
 end

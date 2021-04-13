@@ -21,7 +21,8 @@ export BEASTXMLElement,
        set_options!,
        set_chain_length!,
        get_operators,
-       set_file_logEvery
+       set_file_logEvery,
+       add_factor_proportion
 
 
 using LightXML, LinearAlgebra, UnPack, StatsBase
@@ -133,10 +134,7 @@ include(joinpath(element_dir, "IntegratedFactorsGibbsOperator.jl"))
 include(joinpath(element_dir, "IndependentNormalDistributionModel.jl"))
 include(joinpath(element_dir, "LoadingsScaleGibbsOperator.jl"))
 include(joinpath(element_dir, "LatentLiability.jl"))
-
-
-
-
+include(joinpath(element_dir, "FactorProportionStatistic.jl"))
 
 
 include(joinpath(dir, "utils.jl"))
