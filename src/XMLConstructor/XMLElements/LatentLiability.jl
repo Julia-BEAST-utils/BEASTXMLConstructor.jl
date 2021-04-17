@@ -353,8 +353,10 @@ function latent_liablity_elements(bx::BEASTXMLElement, trait_name::String, state
 
     operator = ExtendedLatendLiabilityOperator(trait_likelihood, likelihood)
     thresh_ops = MyXMLElement[]
-    for param in likelihood.threshold.parameters
-        push!(thresh_ops, ScaleOperator(param))
+    if (maximum(get_num_classes(likelihood.patterns)) > 2)
+        for param in likelihood.threshold.parameters
+            push!(thresh_ops, ScaleOperator(param))
+        end
     end
     # threshold_operator = ScaleOperator(likelihood.threshold)
 
