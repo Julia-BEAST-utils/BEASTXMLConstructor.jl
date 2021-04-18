@@ -194,7 +194,7 @@ function merge_mcmc!(mcmc::MCMCXMLElement, pmcmc::ParsedMCMCXMLElement;
     mcmc.likelihoods = CompoundLikelihood("likelihood",
                             [mcmc.likelihoods; pmcmc.likelihoods],
                             already_made = [false; fill(true, length(pmcmc.likelihoods))])
-    add_loggable(mcmc.loggables, trait_likelihood)
+    add_loggable(mcmc.loggables, trait_likelihood, already_made = true)
 
     mcmc.priors = [mcmc.priors; pmcmc.priors]
 
