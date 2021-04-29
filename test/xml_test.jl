@@ -50,6 +50,8 @@ for i = 1:p
     df[!, Symbol("trait$i")] = data[:, i]
 end
 
+cd(@__DIR__)
+
 data_path = "data.csv"
 dates_path = "dates.csv"
 newick_path = joinpath("data", "newick.txt")
@@ -182,3 +184,23 @@ data = randn(n, p)
 
 bx = BEASTXMLConstructor.make_sampled_pfa_xml(data, taxa, newick, k)
 save_xml("facSampledHMC.xml", bx, change_filename=true)
+
+
+################################################################################
+## Latent liability
+################################################################################
+
+states = ones(Int, p)
+
+states[p - 1] = 2
+data[:, p - 1] .= rand(0:1, n)
+
+states[p] = 4
+data[:, p] .= rand(0:3, n)
+
+
+
+
+bx = make_pfa_xml(data, taxa, newick, k)
+BEASTXMLConstructor.add_latent_liability(bx, ["traits"], states)
+save_xml("liability.xml", bx)
