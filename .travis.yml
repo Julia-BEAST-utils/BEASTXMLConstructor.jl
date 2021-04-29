@@ -1,0 +1,28 @@
+# Documentation: http://docs.travis-ci.com/user/languages/julia/
+language: julia
+os:
+  - linux
+julia:
+  - 1.0
+  - 1
+  - nightly
+matrix:
+  allow_failures:
+    - julia: nightly
+notifications:
+  email: false
+codecov: true
+addons:
+  apt:
+    packages:
+      - ant
+      - ant-optional
+
+before_script:
+  - git clone --depth 1 -b repeated_measures https://github.com/beast-dev/beast-mcmc.git
+  - cd beast-mcmc
+  - ant dist
+  - export BEAST_HOME=$(pwd)
+  - cd ..
+  - java -version
+  - java -jar $BEAST_HOME/build/dist/beast.jar -version
