@@ -334,10 +334,10 @@ function latent_liablity_elements(bx::BEASTXMLElement, trait_name::String, state
         trait_likelihood = flpd.like
     end
 
-
     @assert BEASTXMLConstructor.get_trait_name(trait_likelihood.extension_el) == trait_name
 
-
+    precs = get_precision(int_fac)
+    set_value(precs, fill(2.0, length(precs)))
 
     taxa = data_el.taxa
     trait_ind = findfirst(isequal(trait_name), data_el.trait_names)
