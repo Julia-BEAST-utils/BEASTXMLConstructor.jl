@@ -34,7 +34,7 @@ function run_test()
     nms = ["traitA", "traitB"]
     data = [TraitData(randn(n, ps[i]), taxa, trait_name = nms[i]) for i = 1:length(ps)]
 
-    rm = RepeatedMeasuresModel(data[1])
+    rm = FactorModel(data[1], 1)
     fac = FactorModel(data[2], 2)
     newick = "PUT NEWICK HERE"
 

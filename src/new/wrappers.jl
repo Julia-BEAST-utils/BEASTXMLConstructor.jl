@@ -3,17 +3,19 @@ struct Organizer
     likelihoods::Vector{<:GeneralizedXMLElement}
     priors::Vector{<:GeneralizedXMLElement}
     loggables::Vector{<:GeneralizedXMLElement}
+    partial_providers::Vector{<:GeneralizedXMLElement}
 end
 
 function Organizer(elements::Vector{<:GeneralizedXMLElement};
         likelihoods::Vector{<:GeneralizedXMLElement} = GeneralizedXMLElement[],
         priors::Vector{<:GeneralizedXMLElement} = GeneralizedXMLElement[],
-        loggables::Vector{<:GeneralizedXMLElement} = GeneralizedXMLElement[])
+        loggables::Vector{<:GeneralizedXMLElement} = GeneralizedXMLElement[],
+        partial_providers::Vector{<:GeneralizedXMLElement} = GeneralizedXMLElement[])
 
-    return Organizer(elements, likelihoods, priors, loggables)
+    return Organizer(elements, likelihoods, priors, loggables, partial_providers)
 end
 
-const CONCAT_FIELDS = [:elements, :likelihoods, :priors, :loggables]
+const CONCAT_FIELDS = fieldnames(Organizer)
 
 import Base.vcat
 function vcat(orgs::Organizer...)

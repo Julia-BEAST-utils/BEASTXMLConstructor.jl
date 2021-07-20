@@ -116,7 +116,8 @@ function model_elements(model::FactorModel;
     return Organizer([loadings, precision, ifa],
             likelihoods = [ifa],
             # priors = [], #TODO
-            loggables = [loadings, precision])
+            loggables = [loadings, precision],
+            partial_providers = [ifa])
 
 end
 
@@ -157,14 +158,32 @@ function make_xml(model::GeneralizedContinuousTraitModel)
     # println(make_element(var_mat))
     p_mat = cachedMatrixInverseXML(var_mat, id = "mbd.precision")
 
-    mbd_xml = mbdXML(p_mat)
+    mbd_xml = mbdXML(p_mat, id="diffusionModel")
 
-    elements = [txxml, nxml, tmxml]
+    elements = [txxml, nxml, tmxml, mbd_xml]
     org = Organizer(elements)
 
     for sub_model in models
         org = vcat(org,  model_elements(sub_model, tree_model = tmxml, is_submodel = true))
     end
+
+    joint_extension = GeneralizedXMLElement("jointPartialsProvider",
+            id = "jointModel",
+            children = org.partial_providers)
+    trait_likelihood = traitDataLikelihoodXML(
+            diffusion_model = mbd_xml,
+            tree_model = tmxml,
+            extension_model = joint_extension,
+            root_mean = zeros(q)
+    )
+
+    push!(org.elements, trait_likelihood)
+    push!(org.likelihoods, trait_likelihood)
+
+
+
+    # TODO: likelihood
+    # TODO: operators
 
 
 

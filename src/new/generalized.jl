@@ -204,6 +204,15 @@ function find_element(xml::GeneralizedXMLElement; kw_args...)
 
     return matches[1]
 end
+
+function get_attribute(xml::GeneralizedXMLElement, attribute::String)
+    ind = findfirst(x -> x[1] == attribute, xml.attributes)
+    if isnothing(ind)
+        error("attribute '$attribute' not found")
+    end
+    return xml.attributes[ind][2]
+end
+
 ################################################################################
 ## PassthroughXMLElement
 ################################################################################

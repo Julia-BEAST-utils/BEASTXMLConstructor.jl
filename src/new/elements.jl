@@ -141,7 +141,8 @@ end
 function mbdXML(precision_parameter::AbstractGeneralizedXMLElement;
         id::String = "diffusionModel")
     return GeneralizedXMLElement("multivariateDiffusionModel",
-            children=[precision_parameter])
+            children=[precision_parameter],
+            id = id)
 end
 
 
@@ -153,7 +154,7 @@ const ArrayOrNothing{T} = Union{AbstractArray{T}, Nothing} where T
 const PARAMETER_NAMES = ("value", "upper", "lower", "dimension")
 
 
-function parameterXML(;id::String = nothing,
+function parameterXML(;id::StringOrNothing = nothing,
         value::ArrayOrNothing{Float64} = nothing,
         upper::ArrayOrNothing{Float64} = nothing,
         lower::ArrayOrNothing{Float64} = nothing,
@@ -242,6 +243,80 @@ function matrixParameterXML(X::AbstractMatrix{Float64};
     parameters = [parameterXML(id=ids[i], value=X[i, :]) for i = 1:n]
     return matrixParameterXML(parameters, id = id)
 end
+
+################################################################################
+## traitDataLikelihood
+################################################################################
+mutable struct TraitLikelihoodOptions
+    allowIdentical::Bool
+    standardize::Bool
+    cacheBranches::Bool
+    useTreeLength::Bool
+    scaleByTime::Bool
+    reportAsMultivariate::Bool
+    allowSingular::Bool
+end
+
+function TraitLikelihoodOptions(;
+        allowIdentical::Bool = true,
+        standardize::Bool = true,
+        cacheBranches::Bool = true,
+        useTreeLength::Bool = false,
+        scaleByTime::Bool = true,
+        reportAsMultivariate::Bool = true,
+        allowSingular::Bool = true)
+    return TraitLikelihoodOptions(allowIdentical, standardize, cacheBranches,
+            useTreeLength, scaleByTime, reportAsMultivariate, allowSingular)
+end
+
+function as_attributes(options::TraitLikelihoodOptions)
+    fns = fieldnames(typeof(options))
+    n = length(fns)
+    attrs = Vector{Pair{String, Any}}(undef, n)
+    for i = 1:n
+        attrs[i] = string(fns[i]) => getfield(options, fns[i])
+    end
+    return attrs
+end
+
+
+function get_trait_name(xml::GeneralizedXMLElement)
+    if xml.name == "jointPartialsProvider"
+        children = [get_trait_name(child) for child in xml.children]
+        return join(children, '.') * ".joint"
+    end
+
+    return get_attribute(xml, "traitName")
+end
+
+function traitDataLikelihoodXML(;
+        diffusion_model::GeneralizedXMLElement,
+        tree_model::GeneralizedXMLElement,
+        extension_model::GeneralizedXMLElement,
+        root_mean::Vector{Float64} = zeros(dimension(diffusion_model)),
+        prior_sample_size::Float64 = 0.001,
+        options = TraitLikelihoodOptions()
+        )
+
+    option_attrs = as_attributes(options)
+    trait_name = get_trait_name(extension_model)
+    push!(option_attrs, "traitName" => trait_name)
+
+    mean_param = PassthroughXMLElement("meanParameter",
+            parameterXML(value=root_mean))
+    pss_param = PassthroughXMLElement("priorSampleSize",
+            parameterXML(value=[prior_sample_size]))
+
+    root_prior = PassthroughXMLElement("conjugateRootPrior",
+            [mean_param, pss_param])
+    return GeneralizedXMLElement("traitDataLikelihood", id="$trait_name.likelihood",
+            attributes = option_attrs,
+            children = [tree_model, diffusion_model, extension_model,
+                    root_prior]
+            )
+end
+
+
 
 ################################################################################
 ## mcmc
