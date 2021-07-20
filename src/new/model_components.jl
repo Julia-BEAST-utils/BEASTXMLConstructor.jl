@@ -142,6 +142,20 @@ function model_elements(model::RepeatedMeasuresModel;
 end
 
 
+################################################################################
+## Joint model
+################################################################################
+
+
+function decomposed_var_prior(var_mat::GeneralizedXMLElement, dim::Int)
+    @assert var_mat.name == "compoundSymmetricMatrix"
+    diag_param = find_element(var_mat, name = "diagonal", passthrough = true)
+    offdiag_param = find_element(var_mat, name = "offDiagonal", passthrough = true)
+
+    priors = [halfTPriorXML(diag_param), lkjPriorXML(offdiag_param, dim)]
+    return Organizer(priors, priors = priors)
+end
+
 function make_xml(model::GeneralizedContinuousTraitModel)
     @unpack data, taxa, newick, models = model
     txxml = taxaXML(taxa, data)
@@ -179,6 +193,9 @@ function make_xml(model::GeneralizedContinuousTraitModel)
 
     push!(org.elements, trait_likelihood)
     push!(org.likelihoods, trait_likelihood)
+
+    var_priors = decomposed_var_prior(var_mat, q)
+    org = vcat(org, var_priors)
 
 
 

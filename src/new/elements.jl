@@ -169,6 +169,10 @@ function parameterXML(;id::StringOrNothing = nothing,
     return GeneralizedXMLElement("parameter", id=id, attributes = attributes)
 end
 
+function prior_id(xml::GeneralizedXMLElement)
+    return get_id(xml) * ".prior"
+end
+
 function add_parameter_attribute!(::Vector{<:Pair{String, <:Any}},
         ::String, ::Nothing)
     # do nothing
@@ -316,6 +320,28 @@ function traitDataLikelihoodXML(;
             )
 end
 
+################################################################################
+## Variance priors
+################################################################################
+
+function lkjPriorXML(parameter::GeneralizedXMLElement, dimension::Int;
+        shape_parameter::Float64 = 1.0,
+        id::String = prior_id(parameter)
+        )
+
+    attrs = Pair{String, Any}["shapeParameter" => shape_parameter, "dimension" => dimension]
+    return GeneralizedXMLElement("LKJCorrelationPrior", id = id,
+            attributes = attrs,
+            child = PassthroughXMLElement("data", parameter))
+end
+
+function halfTPriorXML(parameter::GeneralizedXMLElement;
+        df::Int = 1, scale::Float64 = 2.5, id::String = prior_id(parameter))
+
+    return GeneralizedXMLElement("halfTPrior", id = id, child = parameter,
+            attributes = Pair{String, Any}["scale" => scale, "df" => df]
+    )
+end
 
 
 ################################################################################

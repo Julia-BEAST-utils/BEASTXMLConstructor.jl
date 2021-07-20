@@ -8,11 +8,11 @@ function format_string(x)
     return string(x)
 end
 
-function format_string(x::AbstractVector{Float64})
+function format_string(x::AbstractVector{<:Real})
     return join(x, ' ')
 end
 
-function format_string(X::AbstractMatrix{Float64})
+function format_string(X::AbstractMatrix{<:Real})
     return join([join(X[i, :], ' ') for i = 1:size(X, 1)], '\n')
 end
 
@@ -135,7 +135,8 @@ end
 
 function find_elements(xml::GeneralizedXMLElement;
         name::String = "",
-        attributes::Dict{String, String} = Dict{String, String}())
+        attributes::Dict{String, String} = Dict{String, String}(),
+        passthrough::Bool = false)
 
 
     check_name = !isempty(name)
@@ -150,47 +151,95 @@ function find_elements(xml::GeneralizedXMLElement;
 
 
     for child in xml.children
-        if check_name
-            if child.name != name
-                continue
-            end
+        if element_matches(child, name, attributes,
+                check_name = check_name, check_attributes = check_attributes,
+                passthrough = passthrough)
+            add_match!(matches, child)
         end
-
-        if check_attributes
-            if !matches_attributes(child, attributes)
-                continue
-            end
-        end
-        push!(matches, child)
     end
 
     return matches
 end
 
+function add_match!(matches::Vector{GeneralizedXMLElement}, match::GeneralizedXMLElement)
+    push!(matches, match)
+end
+
+function add_match!(matches::Vector{GeneralizedXMLElement}, match::PassthroughXMLElement)
+    if length(match.children) != 1
+        error("can only currenlty add passthrough elements with one child")
+    end
+    push!(matches, match.children[1])
+end
+
+# function find_parent_elements(xml::GeneralizedXMLElement, name::String)
+#     matches = GeneralizedXMLElement[]
+#     for child in children(xml)
+
+
+
+function element_matches(xml::GeneralizedXMLElement, name::String,
+            attrs::Dict{String, String};
+            check_name::Bool,
+            check_attributes::Bool,
+            passthrough::Bool = false)
+
+    if passthrough
+        return false
+    end
+
+    @assert check_name || check_attributes
+
+    if check_name && xml.name != name
+        return false
+    end
+    if check_attributes && !matches_attributes(xml, attrs)
+        return false
+    end
+
+    return true
+end
+
+function element_matches(xml::PassthroughXMLElement, name::String,
+        attrs::Dict{String, String};
+        check_name::Bool,
+        check_attributes::Bool,
+        passthrough::Bool = false)
+
+    if !passthrough
+        return false
+    end
+    if check_attributes
+        error("cannot currently check attributes for PassthroughXMLElement")
+    end
+    @assert check_name
+
+    if xml.name != name
+        return false
+    end
+
+    return true
+end
+
+
 function matches_attributes(xml::GeneralizedXMLElement,
         attributes::Dict{String, String})
-    valid = true
     for (k, v) in attributes
         has_attribute = false
         for (xk, xv) in xml.attributes
             if xk == k
                 has_attribute = true
                 if xv != v
-                    valid = false
-                    break
+                    return false
                 end
-            end
-            if !valid
-                break
             end
         end
         if !has_attribute
-            valid = false
-            break
+            return false
         end
     end
 
-    return valid
+    return true
 end
 
 
@@ -208,9 +257,16 @@ end
 function get_attribute(xml::GeneralizedXMLElement, attribute::String)
     ind = findfirst(x -> x[1] == attribute, xml.attributes)
     if isnothing(ind)
-        error("attribute '$attribute' not found")
+        error("attribute '$attribute' not found in $(xml.name) element")
     end
     return xml.attributes[ind][2]
+end
+
+function get_id(xml::GeneralizedXMLElement)::String
+    if isnothing(xml.id)
+        error("element $(xml.name) has no id")
+    end
+    return xml.id
 end
 
 ################################################################################
