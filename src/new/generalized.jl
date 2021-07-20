@@ -47,9 +47,12 @@ function GeneralizedXMLElement(name::String, id::StringOrNothing,
         content::Any)
 
     p = length(attributes)
-    formatted_attributes = Vector{Pair{String, String}}(undef, p)
+    formatted_attributes = Pair{String, String}[]
     for i = 1:p
-        formatted_attributes[i] = attributes[i][1] => format_string(attributes[i][2])
+        if !isnothing(attributes[i][2])
+            push!(formatted_attributes, attributes[i][1] =>
+                    format_string(attributes[i][2]))
+        end
     end
 
     formatted_content = format_string(content)
@@ -96,6 +99,7 @@ function reference_element(xml::GeneralizedXMLElement)
     if !already_defined(xml)
         error("Cannot reference element that has not alreday been constructed.")
     elseif !has_id(xml)
+        @show xml.name
         error("Cannot reference element without id attribute.")
     end
 

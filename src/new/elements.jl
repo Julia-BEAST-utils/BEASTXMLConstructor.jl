@@ -242,3 +242,51 @@ function matrixParameterXML(X::AbstractMatrix{Float64};
     parameters = [parameterXML(id=ids[i], value=X[i, :]) for i = 1:n]
     return matrixParameterXML(parameters, id = id)
 end
+
+################################################################################
+## mcmc
+################################################################################
+
+function mcmcXML(joint::GeneralizedXMLElement, operators::GeneralizedXMLElement,
+        screen_log::GeneralizedXMLElement,
+        file_log::GeneralizedXMLElement,
+        chain_length::Int;
+        auto_optimize::Bool = true)
+    return GeneralizedXMLElement("mcmc", id = "mcmc",
+        children = [joint, operators, screen_log, file_log],
+        attributes = ["chainLength" => chain_length,
+                "autoOptimize" => auto_optimize])
+end
+
+function mcmcXML(org::Organizer, operators::GeneralizedXMLElement;
+            chain_length::Int,
+            screen_logEvery::Int,
+            file_logEvery::Int,
+            file_name::String,
+            overwrite::Bool = true)
+    likelihood = GeneralizedXMLElement("likelihood", id = "likelihood",
+            children = org.likelihoods)
+    prior = GeneralizedXMLElement("prior", id = "prior", children = org.priors)
+    joint = GeneralizedXMLElement("joint", id="joint",
+            children = [likelihood, prior])
+
+    default_loggables = [joint, likelihood, prior]
+    screen_log = logXML(default_loggables, screen_logEvery)
+    file_log = logXML([default_loggables; org.loggables], file_logEvery,
+        file_name = file_name,
+        overwrite = overwrite)
+
+    return mcmcXML(joint, operators, screen_log, file_log, chain_length)
+end
+
+function logXML(elements::Vector{<:GeneralizedXMLElement}, log_every::Int;
+        id::StringOrNothing = nothing,
+        overwrite::Union{Nothing, Bool} = nothing,
+        file_name::StringOrNothing = nothing)
+
+    attrs = ["fileName" => file_name,
+            "logEvery" => log_every,
+            "overwrite" => overwrite]
+    return GeneralizedXMLElement("log", id = id, children = elements,
+            attributes = attrs)
+end

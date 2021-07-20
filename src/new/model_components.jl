@@ -168,7 +168,15 @@ function make_xml(model::GeneralizedContinuousTraitModel)
 
 
 
-    beast = BEASTXMLDocument(org.elements)
+    mcmc = mcmcXML(org, GeneralizedXMLElement("operators", id="TODO"),
+            chain_length = 1000,
+            screen_logEvery = 10,
+            file_logEvery = 100,
+            file_name = "test.log")
+
+
+
+    beast = BEASTXMLDocument([org.elements; mcmc])
 
     return make_xml(beast)
 end
