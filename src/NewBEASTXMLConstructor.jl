@@ -15,6 +15,7 @@ include("BeastNames.jl")
 const bn = BeastNames
 
 const DataPairs = Vector{Pair{String, Matrix{Float64}}}
+const Nullable{T} = Union{Nothing, T} where T <: Any
 
 new_dir = "new"
 include(joinpath(new_dir, "generalized.jl"))

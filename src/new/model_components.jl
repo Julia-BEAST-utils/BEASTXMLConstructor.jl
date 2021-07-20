@@ -147,14 +147,20 @@ end
 ################################################################################
 
 
-function decomposed_var_prior(var_mat::GeneralizedXMLElement, dim::Int)
-    @assert var_mat.name == "compoundSymmetricMatrix"
-    diag_param = find_element(var_mat, name = "diagonal", passthrough = true)
-    offdiag_param = find_element(var_mat, name = "offDiagonal", passthrough = true)
+# function decomposed_var_prior(var_mat::GeneralizedXMLElement, dim::Int)
+#     @assert var_mat.name == "compoundSymmetricMatrix"
+#     diag_param = find_element(var_mat, name = "diagonal", passthrough = true)
+#     offdiag_param = find_element(var_mat, name = "offDiagonal", passthrough = true)
 
-    priors = [halfTPriorXML(diag_param), lkjPriorXML(offdiag_param, dim)]
-    return Organizer(priors, priors = priors)
-end
+#     priors = [halfTPriorXML(diag_param), lkjPriorXML(offdiag_param, dim)]
+#     return Organizer(priors, priors = priors)
+# end
+
+# function variance_gradients(;precision_parameter::GeneralizedXMLElement,
+#             trait_lieklhiood::GeneralizedXMLElement,
+#             diagonal_prior::GeneralizedXMLElement,
+#             offdiagonal_prior::GeneralizedXMLElement,
+#             )
 
 function make_xml(model::GeneralizedContinuousTraitModel)
     @unpack data, taxa, newick, models = model
@@ -194,8 +200,39 @@ function make_xml(model::GeneralizedContinuousTraitModel)
     push!(org.elements, trait_likelihood)
     push!(org.likelihoods, trait_likelihood)
 
-    var_priors = decomposed_var_prior(var_mat, q)
-    org = vcat(org, var_priors)
+    diag_param = find_element(var_mat, name = "diagonal", passthrough = true)
+    offdiag_param = find_element(var_mat, name = "offDiagonal", passthrough = true)
+
+    diag_prior = halfTPriorXML(diag_param)
+    offdiag_prior = lkjPriorXML(offdiag_param, q)
+
+    var_priors = [diag_prior, offdiag_prior]
+
+
+    diff_prior_grad = compoundGradientXML(
+            [[diag_prior, diag_param], [offdiag_prior]],
+            id="variance.prior.gradient")
+    diff_like_grad = diffusionGradientXML(trait_likelihood = trait_likelihood,
+            precision_parameter = p_mat,
+            id = "variance.likelihood.gradient")
+
+    diff_grad = jointGradientXML([diff_prior_grad, diff_like_grad],
+            id = "variance.gradient")
+
+
+    hmc_op = hmcXML(gradient = diff_grad,
+            parameter = GeneralizedXMLElement("compoundParameter",
+                    children = [diag_param, offdiag_param]))
+
+    ops = GeneralizedXMLElement("operators", child = hmc_op, id = "operators")
+
+
+
+
+    org = vcat(org, Organizer(var_priors, priors = var_priors))
+    push!(org.elements, ops)
+
+
 
 
 

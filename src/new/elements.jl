@@ -345,6 +345,76 @@ end
 
 
 ################################################################################
+## gradients
+################################################################################
+
+function compoundGradientXML(
+        sub_gradients::Vector{<:Vector{<:GeneralizedXMLElement}};
+        id::StringOrNothing = nothing,
+        gradient_ids::Vector{<:StringOrNothing} = fill(nothing, length(sub_gradients))
+        )
+    n = length(sub_gradients)
+    @assert length(gradient_ids) == n
+    gradients = [PassthroughXMLElement("gradient", sub_gradients[i])
+            for i = 1:n]
+    return GeneralizedXMLElement("compoundGradient", id = id,
+            children = gradients)
+end
+
+function jointGradientXML(gradients::Vector{<:GeneralizedXMLElement};
+        id::StringOrNothing = nothing)
+    return GeneralizedXMLElement("jointGradient", id = id, children = gradients)
+end
+
+function diffusionGradientXML(;trait_likelihood::GeneralizedXMLElement,
+        precision_parameter::GeneralizedXMLElement,
+        id::StringOrNothing = nothing)
+
+    trait_name = get_attribute(trait_likelihood, "traitName")
+    precision_gradient = GeneralizedXMLElement("precisionGradient",
+            attributes = ["parameter" => "both","traitName" => trait_name],
+            children = [trait_likelihood, precision_parameter])
+    return GeneralizedXMLElement("diffusionGradient", id = id,
+            child = precision_gradient)
+end
+
+################################################################################
+## hmc
+################################################################################
+
+function hmcXML(;
+        gradient::GeneralizedXMLElement,
+        parameter::GeneralizedXMLElement,
+        transform::Union{GeneralizedXMLElement, Nothing} = nothing,
+        mask::Nullable{GeneralizedXMLElement} = nothing,
+        weight::Float64 = 1.0,
+        n_steps::Int = 10,
+        step_size::Float64 = 0.01,
+        draw_variance::Float64 = 1.0,
+        gradient_check_count::Int = 0,
+        gradient_check_tolerance::Float64 = 0.001,
+        is_geodesic::Bool = false)
+
+    attrs = Pair{String, Any}["weight" => weight, "nSteps" => n_steps,
+            "stepSize" => step_size,
+            "drawVariance" => draw_variance,
+            "gradientCheckCount" => gradient_check_count,
+            "gradientCheckTolerance" => gradient_check_tolerance]
+
+    children = [gradient, parameter]
+    if !isnothing(transform)
+        push!(children, transform)
+    end
+    if !isnothing(mask)
+        push!(children, mask)
+    end
+    hmc_name = is_geodesic ? "geodesicHamiltonianMonteCarloOperator" :
+            "hamiltonianMonteCarloOperator"
+    return GeneralizedXMLElement(hmc_name, children = children,
+            attributes = attrs)
+end
+
+################################################################################
 ## mcmc
 ################################################################################
 
