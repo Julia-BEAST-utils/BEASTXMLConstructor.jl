@@ -24,8 +24,6 @@ end
 ## Data
 ################################################################################
 
-const DataPairs = Vector{Pair{String, Matrix{Float64}}}
-
 function taxaXML(taxa::Vector{String},
         data::DataPairs;
         dates::Union{Nothing, Vector{Float64}} = nothing)
@@ -74,7 +72,8 @@ end
 ## treeModel
 ################################################################################
 
-function treeModelXML(tree::GeneralizedXMLElement, data::DataPairs)
+function treeModelXML(tree::GeneralizedXMLElement, data::DataPairs;
+        id::StringOrNothing = nothing)
     children = [tree,
             PassthroughXMLElement("rootHeight",
                 parameterXML(id="treeModel.rootHeight")),
@@ -90,7 +89,7 @@ function treeModelXML(tree::GeneralizedXMLElement, data::DataPairs)
         push!(children, trait_xml)
     end
 
-    return GeneralizedXMLElement("treeModel", children = children)
+    return GeneralizedXMLElement("treeModel", children = children, id = id)
 end
 
 function nodeHeightsXML(parameter::AbstractGeneralizedXMLElement;
@@ -125,6 +124,13 @@ function nodeTraitsXML(trait_name::String, dim::Int,
         parameter_id::AbstractString; kw_args...)
     return nodeTraitsXML(trait_name, dim, parameterXML(id=parameter_id);
             kw_args...)
+end
+
+function find_trait_parameter(tm::GeneralizedXMLElement, trait::String)
+    @assert tm.name == "treeModel"
+    node_traits = find_element(tm, attributes = Dict("name" => trait))
+
+    return find_element(node_traits, name = "parameter")
 end
 
 
@@ -225,7 +231,7 @@ end
 
 function matrixParameterXML(parameters::Vector{<:AbstractGeneralizedXMLElement};
         id::StringOrNothing = nothing)
-    return GeneralizedContinuousTraitModel(id = id, children = parameters)
+    return GeneralizedXMLElement("matrixParameter", id = id, children = parameters)
 end
 
 function matrixParameterXML(X::AbstractMatrix{Float64};
@@ -236,4 +242,3 @@ function matrixParameterXML(X::AbstractMatrix{Float64};
     parameters = [parameterXML(id=ids[i], value=X[i, :]) for i = 1:n]
     return matrixParameterXML(parameters, id = id)
 end
-

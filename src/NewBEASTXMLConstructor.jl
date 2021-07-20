@@ -11,9 +11,14 @@ export MBDModel,
 
 using LightXML, UnPack, LinearAlgebra
 
+include("BeastNames.jl")
+const bn = BeastNames
+
+const DataPairs = Vector{Pair{String, Matrix{Float64}}}
 
 new_dir = "new"
 include(joinpath(new_dir, "generalized.jl"))
+include(joinpath(new_dir, "wrappers.jl"))
 include(joinpath(new_dir, "model_components.jl"))
 include(joinpath(new_dir, "elements.jl"))
 
@@ -29,11 +34,11 @@ function run_test()
     nms = ["traitA", "traitB"]
     data = [TraitData(randn(n, ps[i]), taxa, trait_name = nms[i]) for i = 1:length(ps)]
 
-    mbd = MBDModel(data[1])
+    rm = RepeatedMeasuresModel(data[1])
     fac = FactorModel(data[2], 2)
     newick = "PUT NEWICK HERE"
 
-    model = GeneralizedContinuousTraitModel([mbd, fac], newick)
+    model = GeneralizedContinuousTraitModel([rm, fac], newick)
 
     xml = make_xml(model)
     println(xml)

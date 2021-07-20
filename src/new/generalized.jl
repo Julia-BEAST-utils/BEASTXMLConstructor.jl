@@ -121,7 +121,6 @@ function make_element(xml::GeneralizedXMLElement)::XMLElement
     end
 
     if !isnothing(content)
-        @show content
         add_text(el, content)
     end
 
@@ -130,6 +129,77 @@ function make_element(xml::GeneralizedXMLElement)::XMLElement
     return el
 end
 
+function find_elements(xml::GeneralizedXMLElement;
+        name::String = "",
+        attributes::Dict{String, String} = Dict{String, String}())
+
+
+    check_name = !isempty(name)
+    check_attributes = !isempty(attributes)
+
+    if !(check_name || check_attributes)
+        error("must supply either name or attributes (or both) to match")
+    end
+
+    matches = GeneralizedXMLElement[]
+
+
+
+    for child in xml.children
+        if check_name
+            if child.name != name
+                continue
+            end
+        end
+
+        if check_attributes
+            if !matches_attributes(child, attributes)
+                continue
+            end
+        end
+        push!(matches, child)
+    end
+
+    return matches
+end
+
+function matches_attributes(xml::GeneralizedXMLElement,
+        attributes::Dict{String, String})
+    valid = true
+    for (k, v) in attributes
+        has_attribute = false
+        for (xk, xv) in xml.attributes
+            if xk == k
+                has_attribute = true
+                if xv != v
+                    valid = false
+                    break
+                end
+            end
+            if !valid
+                break
+            end
+        end
+        if !has_attribute
+            valid = false
+            break
+        end
+    end
+
+    return valid
+end
+
+
+function find_element(xml::GeneralizedXMLElement; kw_args...)
+    matches = find_elements(xml; kw_args...)
+    if length(matches) == 0
+        error("no elements found matching criteria")
+    elseif length(matches) > 1
+        error("more than one element found matching creteria")
+    end
+
+    return matches[1]
+end
 ################################################################################
 ## PassthroughXMLElement
 ################################################################################
@@ -151,6 +221,11 @@ function make_element(xml::PassthroughXMLElement)
     return el
 end
 
+
+
+function matches_attributes(::PassthroughXMLElement, ::Dict{String, String})
+    return false
+end
 ################################################################################
 ## XMLDocument
 ################################################################################

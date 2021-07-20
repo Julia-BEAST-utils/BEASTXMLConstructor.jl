@@ -35,6 +35,10 @@ function GeneralizedContinuousTraitModel(models::Vector{<:AbstractDataModel},
     return GeneralizedContinuousTraitModel(data, taxa, models, newick)
 end
 
+################################################################################
+## TraitData
+################################################################################
+
 
 struct TraitData
     data::Matrix{Float64}
@@ -71,43 +75,78 @@ function get_traitdata(model::AbstractDataModel)::TraitData
     return model.data
 end
 
-
+################################################################################
+## Factor Model
+################################################################################
 
 struct FactorModel <: AbstractDataModel
     data::TraitData
     L::Matrix{Float64} # k X p
+    prec::Vector{Float64} # factor precision
 end
 
 function FactorModel(data::TraitData, k::Int)
     p = size(data.data, 2)
     L = zeros(k, p)
-    return FactorModel(data, L)
+    return FactorModel(data, L, ones(p))
 end
 
 function input_dim(model::FactorModel)
     return size(model.L, 1)
 end
 
-function model_elements(model::FactorModel, ; is_submodel::Bool = false)
-    L_id = is_submodel ? get_traitdata(model).trait_name * ".L" : "L"
-    loadings_xml = matrixParameterXML(model.L, id=L_id)
+function model_elements(model::FactorModel;
+            tree_model::GeneralizedXMLElement,
+            is_submodel::Bool = false)
+    trait_name = get_traitdata(model).trait_name
+    id_header = is_submodel ? trait_name * "." : ""
+    loadings = matrixParameterXML(model.L, id = id_header * "L")
+    precision = parameterXML(id = id_header * "factorPrecision",
+            value = model.prec,
+            lower = zeros(length(model.prec)))
 
-    # factor_model_id =
+
+    ifa = integratedFactorModelXML(loadings = loadings,
+        precision = precision,
+        treeModel = tree_model,
+        traitParameter = find_trait_parameter(tree_model, trait_name),
+        trait_name = trait_name,
+        id = id_header * ".factormodel")
+
+    return Organizer([loadings, precision, ifa],
+            likelihoods = [ifa],
+            # priors = [], #TODO
+            loggables = [loadings, precision])
+
 end
 
 
-struct MBDModel <: AbstractDataModel
+################################################################################
+## MBD Model
+################################################################################
+
+struct RepeatedMeasuresModel <: AbstractDataModel
     data::TraitData
     # variance::Matrix{Float64}
 end
 
+function model_elements(model::RepeatedMeasuresModel;
+            tree_model::GeneralizedXMLElement, is_submodel::Bool = false)
+    # L_id = is_submodel ? get_traitdata(model).trait_name * ".L" : "L"
+    # loadings_xml = matrixParameterXML(model.L, id=L_id)
+
+    return Organizer(GeneralizedXMLElement[])
+
+    # factor_model_id =
+end
 
 
 function make_xml(model::GeneralizedContinuousTraitModel)
     @unpack data, taxa, newick, models = model
     txxml = taxaXML(taxa, data)
     nxml = newickXML(newick)
-    tmxml = treeModelXML(nxml, data)
+    tmxml = treeModelXML(nxml, data, id = "treeModel")
+
 
     n_models = length(models)
     tree_dims = [input_dim(sub_model) for sub_model = models]
@@ -120,8 +159,16 @@ function make_xml(model::GeneralizedContinuousTraitModel)
 
     mbd_xml = mbdXML(p_mat)
 
+    elements = [txxml, nxml, tmxml]
+    org = Organizer(elements)
 
-    beast = BEASTXMLDocument([txxml, nxml, tmxml, mbd_xml])
+    for sub_model in models
+        org = vcat(org,  model_elements(sub_model, tree_model = tmxml, is_submodel = true))
+    end
+
+
+
+    beast = BEASTXMLDocument(org.elements)
 
     return make_xml(beast)
 end
