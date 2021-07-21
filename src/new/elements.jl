@@ -20,6 +20,16 @@ function integratedFactorModelXML(;
     return GeneralizedXMLElement("integratedFactorModel", id, attributes, children, nothing)
 end
 
+function find_loadings(xml::GeneralizedXMLElement)
+    @assert xml.name == "integratedFactorModel"
+    return find_element(xml, name = "loadings", passthrough = true)
+end
+
+function find_factor_precision(xml::GeneralizedXMLElement)
+    @assert xml.name == "integratedFactorModel"
+    return find_element(xml, name="precision", passthrough = true)
+end
+
 ################################################################################
 ## Data
 ################################################################################
@@ -155,9 +165,9 @@ const PARAMETER_NAMES = ("value", "upper", "lower", "dimension")
 
 
 function parameterXML(;id::StringOrNothing = nothing,
-        value::ArrayOrNothing{Float64} = nothing,
-        upper::ArrayOrNothing{Float64} = nothing,
-        lower::ArrayOrNothing{Float64} = nothing,
+        value::ArrayOrNothing{<:Real} = nothing,
+        upper::ArrayOrNothing{<:Real} = nothing,
+        lower::ArrayOrNothing{<:Real} = nothing,
         dimension::Union{Int, Nothing} = nothing)
 
     attributes = Pair{String, Any}[]
@@ -179,7 +189,7 @@ function add_parameter_attribute!(::Vector{<:Pair{String, <:Any}},
 end
 
 function add_parameter_attribute!(attributes::Vector{<:Pair{String, <:Any}},
-        attr_name::String, attr_value::AbstractArray{Float64})
+        attr_name::String, attr_value::AbstractArray{<:Real})
     push!(attributes, attr_name => attr_value)
 end
 
@@ -320,6 +330,14 @@ function traitDataLikelihoodXML(;
             )
 end
 
+const PARTIALS_PROVIDERS = ["integratedFactorModel",
+                            "repeatedMeasuresModel",
+                            "jointPartialsProvider"]
+
+function find_partials_provider(xml::GeneralizedXMLElement)
+    provider = find_element(xml, names = PARTIALS_PROVIDERS)
+end
+
 ################################################################################
 ## Variance priors
 ################################################################################
@@ -355,10 +373,13 @@ function compoundGradientXML(
         )
     n = length(sub_gradients)
     @assert length(gradient_ids) == n
-    gradients = [PassthroughXMLElement("gradient", sub_gradients[i])
-            for i = 1:n]
+    gradients = [gradientXML(sub_gradients[i]) for i = 1:n]
     return GeneralizedXMLElement("compoundGradient", id = id,
             children = gradients)
+end
+
+function gradientXML(children::Vector{<:GeneralizedXMLElement})
+    return GeneralizedXMLElement("gradient", children = children)
 end
 
 function jointGradientXML(gradients::Vector{<:GeneralizedXMLElement};
@@ -386,7 +407,7 @@ function hmcXML(;
         gradient::GeneralizedXMLElement,
         parameter::GeneralizedXMLElement,
         transform::Union{GeneralizedXMLElement, Nothing} = nothing,
-        mask::Nullable{GeneralizedXMLElement} = nothing,
+        mask_parameter::Nullable{GeneralizedXMLElement} = nothing,
         weight::Float64 = 1.0,
         n_steps::Int = 10,
         step_size::Float64 = 0.01,
@@ -401,17 +422,120 @@ function hmcXML(;
             "gradientCheckCount" => gradient_check_count,
             "gradientCheckTolerance" => gradient_check_tolerance]
 
-    children = [gradient, parameter]
+    children = AbstractGeneralizedXMLElement[gradient, parameter]
     if !isnothing(transform)
         push!(children, transform)
     end
-    if !isnothing(mask)
-        push!(children, mask)
+    if !isnothing(mask_parameter)
+        push!(children, PassthroughXMLElement("mask", mask_parameter))
     end
     hmc_name = is_geodesic ? "geodesicHamiltonianMonteCarloOperator" :
             "hamiltonianMonteCarloOperator"
     return GeneralizedXMLElement(hmc_name, children = children,
             attributes = attrs)
+end
+
+function lkjTransformXML(dim::Int)
+    return GeneralizedXMLElement("LKJTransform",
+            attributes = ["dimension" => dim])
+end
+
+function transformXML(type::String; dim::Nullable{Int} = nothing)
+    return GeneralizedXMLElement("transform",
+            attributes = ["type" => type, "dim" => dim])
+end
+
+function multivariateCompoundTransformXML(transforms::GeneralizedXMLElement...)
+    return GeneralizedXMLElement("multivariateCompoundTransform",
+            children = collect(transforms))
+end
+
+
+################################################################################
+## other operators
+################################################################################
+"""
+<normalGammaPrecisionGibbsOperator weight="1.0">
+    <prior>
+        <gammaPrior idref="factorPrecision.prior"/>
+    </prior>
+    <normalExtension treeTraitName="factors">
+        <integratedFactorModel idref="factorModel"/>
+        <traitDataLikelihood idref="traitLikelihood"/>
+    </normalExtension>
+</normalGammaPrecisionGibbsOperator>
+"""
+function normalGammaGibbsXML(;prior::GeneralizedXMLElement,
+        provider::GeneralizedXMLElement,
+        weight::Float64 = 1.0)
+    return GeneralizedXMLElement("normalGammaPrecisionGibbsOperator",
+            children = [PassthroughXMLElement("prior", prior), provider],
+            attributes = ["weight" => weight])
+end
+
+function normalExtensionXML(;
+        extension::GeneralizedXMLElement,
+        likelihood::GeneralizedXMLElement,
+        trait_name::String = get_attribute(likelihood, "traitName"))
+    return GeneralizedXMLElement("normalExtension",
+            children = [extension, likelihood],
+            attributes = ["treeTraitName" => trait_name])
+end
+
+
+################################################################################
+## distributions
+################################################################################
+
+"""
+<distributionLikelihood id="L.prior">
+    <data>
+        <matrixParameter idref="L"/>
+    </data>
+    <distribution>
+        <normalDistributionModel>
+            <mean>
+                <parameter value="0.0"/>
+            </mean>
+            <stdev>
+                <parameter value="1.0" lower="0"/>
+            </stdev>
+        </normalDistributionModel>
+    </distribution>
+</distributionLikelihood>
+"""
+
+function distributionLikelihoodXML(;data_parameter::GeneralizedXMLElement,
+        distribution_model::GeneralizedXMLElement,
+        id::String = prior_id(data_parameter))
+    return GeneralizedXMLElement("distributionLikelihood", id = id,
+            children = [PassthroughXMLElement("data", data_parameter),
+                    PassthroughXMLElement("distribution", distribution_model)])
+end
+
+function normalDistributionModelXML(;mean_parameter::GeneralizedXMLElement,
+        stdev_parameter::GeneralizedXMLElement)
+    return GeneralizedXMLElement("normalDistributionModel",
+            children = [PassthroughXMLElement("mean", mean_parameter),
+                    PassthroughXMLElement("stdev", stdev_parameter)])
+end
+
+function standardNormalDistributionXML()
+    return normalDistributionModelXML(mean_parameter = parameterXML(value=[0]),
+            stdev_parameter = parameterXML(value=[1], lower=[0]))
+end
+
+"""
+<gammaPrior id="factorPrecision.prior" scale="1.0" shape="1.0">
+    <parameter idref="factorPrecision"/>
+</gammaPrior>
+"""
+
+function gammaPriorXML(parameter::GeneralizedXMLElement;
+        scale::Float64 = 1.0, shape::Float64 = 1.0,
+        id::String = prior_id(parameter))
+    return GeneralizedXMLElement("gammaPrior", id = id, child = parameter,
+            attributes = ["scale" => scale, "shape" => shape])
 end
 
 ################################################################################

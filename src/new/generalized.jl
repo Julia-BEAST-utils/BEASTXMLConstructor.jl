@@ -134,12 +134,20 @@ function make_element(xml::GeneralizedXMLElement)::XMLElement
 end
 
 function find_elements(xml::GeneralizedXMLElement;
+        names::Vector{String} = String[],
         name::String = "",
         attributes::Dict{String, String} = Dict{String, String}(),
         passthrough::Bool = false)
 
 
-    check_name = !isempty(name)
+    check_name = !isempty(name) || !isempty(names)
+    if check_name
+        if !isempty(name) && !(isempty(names))
+            error("only supply on the 'name' or 'names' keyword arguments")
+        elseif isempty(names)
+            names = [name]
+        end
+    end
     check_attributes = !isempty(attributes)
 
     if !(check_name || check_attributes)
@@ -151,7 +159,7 @@ function find_elements(xml::GeneralizedXMLElement;
 
 
     for child in xml.children
-        if element_matches(child, name, attributes,
+        if element_matches(child, names, attributes,
                 check_name = check_name, check_attributes = check_attributes,
                 passthrough = passthrough)
             add_match!(matches, child)
@@ -178,7 +186,7 @@ end
 
 
 
-function element_matches(xml::GeneralizedXMLElement, name::String,
+function element_matches(xml::GeneralizedXMLElement, names::Vector{String},
             attrs::Dict{String, String};
             check_name::Bool,
             check_attributes::Bool,
@@ -190,7 +198,7 @@ function element_matches(xml::GeneralizedXMLElement, name::String,
 
     @assert check_name || check_attributes
 
-    if check_name && xml.name != name
+    if check_name && !(xml.name in names)
         return false
     end
     if check_attributes && !matches_attributes(xml, attrs)
@@ -200,7 +208,7 @@ function element_matches(xml::GeneralizedXMLElement, name::String,
     return true
 end
 
-function element_matches(xml::PassthroughXMLElement, name::String,
+function element_matches(xml::PassthroughXMLElement, names::Vector{String},
         attrs::Dict{String, String};
         check_name::Bool,
         check_attributes::Bool,
@@ -214,7 +222,7 @@ function element_matches(xml::PassthroughXMLElement, name::String,
     end
     @assert check_name
 
-    if xml.name != name
+    if !(xml.name in names)
         return false
     end
 

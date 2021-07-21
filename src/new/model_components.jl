@@ -113,13 +113,68 @@ function model_elements(model::FactorModel;
         trait_name = trait_name,
         id = id_header * ".factormodel")
 
-    return Organizer([loadings, precision, ifa],
+    loadings_prior = distributionLikelihoodXML(data_parameter = loadings,
+            distribution_model = standardNormalDistributionXML())
+    precision_prior = gammaPriorXML(precision)
+
+
+    return Organizer([loadings, precision, ifa, loadings_prior, precision_prior],
             likelihoods = [ifa],
-            # priors = [], #TODO
+            priors = [loadings_prior, precision_prior],
             loggables = [loadings, precision],
             partial_providers = [ifa])
 
 end
+
+function set_mask!(x::Vector{<:Real}, model::FactorModel, offset::Int)
+    k = input_dim(model)
+    x[(offset + 1):(offset + k)] .= 0
+end
+
+function setup_operators(model::FactorModel, org::Organizer;
+        trait_likelihood::GeneralizedXMLElement)
+
+    @assert length(org.partial_providers) == 1
+    provider = org.partial_providers[1]
+    super_provider = find_partials_provider(trait_likelihood)
+
+    super_model = super_provider !== provider
+
+    loadings_gradient_providers = [provider, trait_likelihood]
+    if super_model
+        push!(loadings_gradient_providers, super_provider)
+    end
+
+    loadings_like_grad = GeneralizedXMLElement(
+            "integratedFactorAnalysisLoadingsGradient",
+            children = loadings_gradient_providers)
+
+    loadings = find_loadings(provider)
+    loadings_prior = find_prior(org, loadings)
+
+    loadings_prior_grad = gradientXML([loadings, loadings_prior])
+    loadings_grad = jointGradientXML([loadings_like_grad, loadings_prior_grad])
+    loadings_op = hmcXML(gradient = loadings_grad, parameter = loadings)
+
+    precision = find_factor_precision(provider)
+    prec_provider = normalExtensionXML(extension = provider, likelihood = trait_likelihood)
+    prec_prior = find_prior(org, precision)
+    prec_op = normalGammaGibbsXML(prior = prec_prior, provider = prec_provider)
+    return [loadings_op, prec_op]
+
+end
+
+function find_prior(org::Organizer, parameter::GeneralizedXMLElement)
+    id = prior_id(parameter)
+
+    for prior in org.priors
+        if prior.id == id
+            return prior
+        end
+    end
+    error("could not locate prior")
+end
+
 
 
 ################################################################################
@@ -183,8 +238,13 @@ function make_xml(model::GeneralizedContinuousTraitModel)
     elements = [txxml, nxml, tmxml, mbd_xml]
     org = Organizer(elements)
 
-    for sub_model in models
-        org = vcat(org,  model_elements(sub_model, tree_model = tmxml, is_submodel = true))
+    sub_model_components = Vector{Organizer}(undef, n_models)
+
+    for i = 1:n_models
+        sub_model = models[i]
+        components = model_elements(sub_model, tree_model = tmxml, is_submodel = true)
+        sub_model_components[i] = components
+        org = vcat(org,  components)
     end
 
     joint_extension = GeneralizedXMLElement("jointPartialsProvider",
@@ -199,6 +259,8 @@ function make_xml(model::GeneralizedContinuousTraitModel)
 
     push!(org.elements, trait_likelihood)
     push!(org.likelihoods, trait_likelihood)
+
+    # diffusion priors + operator
 
     diag_param = find_element(var_mat, name = "diagonal", passthrough = true)
     offdiag_param = find_element(var_mat, name = "offDiagonal", passthrough = true)
@@ -219,12 +281,37 @@ function make_xml(model::GeneralizedContinuousTraitModel)
     diff_grad = jointGradientXML([diff_prior_grad, diff_like_grad],
             id = "variance.gradient")
 
+    n_diff = div(q * (q + 1), 2)
+    diff_mask = ones(Int, n_diff)
+    offset = 0
+    for sub_model in models
+        set_mask!(diff_mask, sub_model, offset)
+        offset += input_dim(sub_model)
+    end
+
+    diff_transform = multivariateCompoundTransformXML(
+                transformXML("log", dim = q),
+                lkjTransformXML(q)
+    )
+
 
     hmc_op = hmcXML(gradient = diff_grad,
             parameter = GeneralizedXMLElement("compoundParameter",
-                    children = [diag_param, offdiag_param]))
+                    children = [diag_param, offdiag_param]),
+            mask_parameter = parameterXML(value = diff_mask),
+            transform = diff_transform)
 
-    ops = GeneralizedXMLElement("operators", child = hmc_op, id = "operators")
+    operators = GeneralizedXMLElement[hmc_op]
+    for i = 1:n_models
+        sub_model = models[i]
+        sub_components = sub_model_components[i]
+        sub_operators = setup_operators(sub_model, sub_components,
+                trait_likelihood = trait_likelihood)
+        operators = [operators; sub_operators]
+    end
+
+
+    ops = GeneralizedXMLElement("operators", children = operators, id = "operators")
 
 
 
@@ -241,7 +328,7 @@ function make_xml(model::GeneralizedContinuousTraitModel)
 
 
 
-    mcmc = mcmcXML(org, GeneralizedXMLElement("operators", id="TODO"),
+    mcmc = mcmcXML(org, ops,
             chain_length = 1000,
             screen_logEvery = 10,
             file_logEvery = 100,
