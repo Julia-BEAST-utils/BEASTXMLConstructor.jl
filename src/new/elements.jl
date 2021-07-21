@@ -31,6 +31,38 @@ function find_factor_precision(xml::GeneralizedXMLElement)
 end
 
 ################################################################################
+## repeatedMeasures
+################################################################################
+
+"""
+<repeatedMeasuresModel id="traits.residualModel" traitName="traits">
+    <treeModel idref="treeModel"/>
+    <traitParameter>
+        <parameter id="leaf.traits"/>
+    </traitParameter>
+    <samplingPrecision>
+
+    </samplingPrecision>
+</repeatedMeasuresModel>
+"""
+function repeatedMeasuresModelXML(;
+            tree_model::GeneralizedXMLElement,
+            precision::GeneralizedXMLElement,
+            trait_name::String,
+            id::String = "$trait_name.residualModel"
+            )
+    trait_parameter = find_trait_parameter(tree_model, trait_name)
+
+    return GeneralizedXMLElement("repeatedMeasuresModel", id = id,
+            children = [
+                    tree_model,
+                    PassthroughXMLElement("traitParameter", trait_parameter),
+                    PassthroughXMLElement("samplingPrecision", precision)
+                    ],
+            attributes = [bn.TRAIT_NAME => trait_name])
+end
+
+################################################################################
 ## Data
 ################################################################################
 

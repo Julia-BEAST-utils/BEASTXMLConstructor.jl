@@ -183,7 +183,12 @@ end
 
 struct RepeatedMeasuresModel <: AbstractDataModel
     data::TraitData
-    # variance::Matrix{Float64}
+    precision::Matrix{Float64}
+end
+
+function RepeatedMeasuresModel(data::TraitData)
+    p = size(data, 2)
+    return RepeatedMeasuresModel(data, Matrix(Diagonal(ones(p))))
 end
 
 function model_elements(model::RepeatedMeasuresModel;
@@ -194,6 +199,15 @@ function model_elements(model::RepeatedMeasuresModel;
     return Organizer(GeneralizedXMLElement[])
 
     # factor_model_id =
+end
+
+function setup_operators(::RepeatedMeasuresModel, org::Organizer;
+        trait_likelihood::GeneralizedXMLElement)
+    #TODO
+    return GeneralizedXMLElement[]
+end
+function set_mask!(::Vector{<:Real}, ::RepeatedMeasuresModel, ::Int)
+    # do nothing
 end
 
 
@@ -305,6 +319,7 @@ function make_xml(model::GeneralizedContinuousTraitModel)
     for i = 1:n_models
         sub_model = models[i]
         sub_components = sub_model_components[i]
+        @show typeof(sub_model)
         sub_operators = setup_operators(sub_model, sub_components,
                 trait_likelihood = trait_likelihood)
         operators = [operators; sub_operators]

@@ -21,6 +21,33 @@ function format_string(::Nothing)
 end
 
 ################################################################################
+## PassthroughXMLElement
+################################################################################
+
+struct PassthroughXMLElement <: AbstractGeneralizedXMLElement
+    name::String
+    children::Vector{<:AbstractGeneralizedXMLElement}
+end
+
+function PassthroughXMLElement(name::String, child::AbstractGeneralizedXMLElement)
+    return PassthroughXMLElement(name, [child])
+end
+
+function make_element(xml::PassthroughXMLElement)
+    el = new_element(xml.name)
+    for child in xml.children
+        add_child(el, make_element(child))
+    end
+    return el
+end
+
+
+
+function matches_attributes(::PassthroughXMLElement, ::Dict{String, String})
+    return false
+end
+
+################################################################################
 ## GeneralizedXMLElement
 ################################################################################
 
@@ -277,32 +304,6 @@ function get_id(xml::GeneralizedXMLElement)::String
     return xml.id
 end
 
-################################################################################
-## PassthroughXMLElement
-################################################################################
-
-struct PassthroughXMLElement <: AbstractGeneralizedXMLElement
-    name::String
-    children::Vector{<:AbstractGeneralizedXMLElement}
-end
-
-function PassthroughXMLElement(name::String, child::AbstractGeneralizedXMLElement)
-    return PassthroughXMLElement(name, [child])
-end
-
-function make_element(xml::PassthroughXMLElement)
-    el = new_element(xml.name)
-    for child in xml.children
-        add_child(el, make_element(child))
-    end
-    return el
-end
-
-
-
-function matches_attributes(::PassthroughXMLElement, ::Dict{String, String})
-    return false
-end
 ################################################################################
 ## XMLDocument
 ################################################################################
