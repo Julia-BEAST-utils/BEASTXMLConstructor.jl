@@ -5,7 +5,7 @@
 abstract type AbstractDataModel end
 
 function output_dim(model::AbstractDataModel)
-    return size(get_traitdata(model), 1)
+    return size(get_traitdata(model), 2)
 end
 
 function input_dim(model::AbstractDataModel)
@@ -131,7 +131,7 @@ function set_mask!(x::Vector{<:Real}, model::FactorModel, offset::Int)
     x[(offset + 1):(offset + k)] .= 0
 end
 
-function setup_operators(model::FactorModel, org::Organizer;
+function setup_operators(::FactorModel, org::Organizer;
         trait_likelihood::GeneralizedXMLElement)
 
     @assert length(org.partial_providers) == 1
@@ -193,10 +193,17 @@ end
 
 function model_elements(model::RepeatedMeasuresModel;
             tree_model::GeneralizedXMLElement, is_submodel::Bool = false)
-    # L_id = is_submodel ? get_traitdata(model).trait_name * ".L" : "L"
-    # loadings_xml = matrixParameterXML(model.L, id=L_id)
+    prec_id = is_submodel ?
+            get_traitdata(model).trait_name * ".residualPrecision" :
+                    "residualPrecision"
+    prec = matrixParameterXML(model.precision, id = prec_id)
+    trait_name = get_traitdata(model).trait_name
 
-    return Organizer(GeneralizedXMLElement[])
+    rm = repeatedMeasuresModelXML(tree_model = tree_model, precision = prec,
+            trait_name = trait_name)
+
+
+    return Organizer([rm], loggables = [prec], partial_providers = [rm])
 
     # factor_model_id =
 end
