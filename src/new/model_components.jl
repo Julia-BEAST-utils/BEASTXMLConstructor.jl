@@ -152,7 +152,7 @@ function setup_operators(model::FactorModel, org::Organizer;
     loadings = find_loadings(provider)
     loadings_prior = find_prior(org, loadings)
 
-    loadings_prior_grad = gradientXML([loadings, loadings_prior])
+    loadings_prior_grad = gradientXML([loadings_prior, loadings])
     loadings_grad = jointGradientXML([loadings_like_grad, loadings_prior_grad])
     loadings_op = hmcXML(gradient = loadings_grad, parameter = loadings)
 

@@ -151,7 +151,7 @@ end
 function mbdXML(precision_parameter::AbstractGeneralizedXMLElement;
         id::String = "diffusionModel")
     return GeneralizedXMLElement("multivariateDiffusionModel",
-            children=[precision_parameter],
+            child=PassthroughXMLElement("precisionMatrix", precision_parameter),
             id = id)
 end
 
@@ -549,7 +549,7 @@ function mcmcXML(joint::GeneralizedXMLElement, operators::GeneralizedXMLElement,
         auto_optimize::Bool = true)
     return GeneralizedXMLElement("mcmc", id = "mcmc",
         children = [joint, operators, screen_log, file_log],
-        attributes = ["chainLength" => chain_length,
+        attributes = Pair{String, Any}["chainLength" => chain_length,
                 "autoOptimize" => auto_optimize])
 end
 
