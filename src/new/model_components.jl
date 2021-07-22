@@ -13,15 +13,14 @@ function input_dim(model::AbstractDataModel)
 end
 
 
-struct GeneralizedContinuousTraitModel{T <: AbstractDataModel}
+struct JointTraitModel{T <: AbstractDataModel}
     data::DataPairs
     taxa::Vector{String}
     models::Vector{T}
     newick::String
-
 end
 
-function GeneralizedContinuousTraitModel(models::Vector{<:AbstractDataModel},
+function JointTraitModel(models::Vector{<:AbstractDataModel},
         newick::String)
     n = length(models)
     @assert n > 0
@@ -32,7 +31,7 @@ function GeneralizedContinuousTraitModel(models::Vector{<:AbstractDataModel},
     end
 
     data = [get_traitname(models[i]) => get_data(models[i]) for i = 1:n]
-    return GeneralizedContinuousTraitModel(data, taxa, models, newick)
+    return JointTraitModel(data, taxa, models, newick)
 end
 
 ################################################################################
@@ -238,7 +237,7 @@ end
 #             offdiagonal_prior::GeneralizedXMLElement,
 #             )
 
-function make_xml(model::GeneralizedContinuousTraitModel)
+function make_xml(model::JointTraitModel)
     @unpack data, taxa, newick, models = model
     txxml = taxaXML(taxa, data)
     nxml = newickXML(newick)
