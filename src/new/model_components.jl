@@ -125,9 +125,34 @@ function model_elements(model::FactorModel;
 
 end
 
-function set_mask!(x::Vector{<:Real}, model::FactorModel, offset::Int)
+function set_mask!(x::Vector{<:Real}, model::FactorModel, dim::Int, offset::Int)
     k = input_dim(model)
-    x[(offset + 1):(offset + k)] .= 0
+    big_k = offset + k
+    x[(offset + 1):big_k] .= 0
+
+    off_diagonals = @view x[(dim + 1):end]
+
+    corr_offset = 0
+    for row = 1:(big_k - 1)
+        for col = max(1, offset - row + 1):(offset - row + k)
+            off_diagonals[corr_offset + col] = 0
+        end
+        corr_offset += dim - row
+    end
+
+    @show offset
+
+    L = zeros(dim, dim)
+    ind = 0
+    for i = 1:dim
+        L[i, i] = x[i]
+        for j = (i + 1):dim
+            ind += 1
+            L[i, j] = off_diagonals[ind]
+            L[j, i] = L[i, j]
+        end
+    end
+    display(L)
 end
 
 function setup_operators(::FactorModel, org::Organizer;
@@ -212,7 +237,7 @@ function setup_operators(::RepeatedMeasuresModel, org::Organizer;
     #TODO
     return GeneralizedXMLElement[]
 end
-function set_mask!(::Vector{<:Real}, ::RepeatedMeasuresModel, ::Int)
+function set_mask!(::Vector{<:Real}, ::RepeatedMeasuresModel, ::Int, ::Int)
     # do nothing
 end
 
@@ -305,7 +330,7 @@ function make_xml(model::JointTraitModel)
     diff_mask = ones(Int, n_diff)
     offset = 0
     for sub_model in models
-        set_mask!(diff_mask, sub_model, offset)
+        set_mask!(diff_mask, sub_model, q, offset)
         offset += input_dim(sub_model)
     end
 
