@@ -257,7 +257,7 @@ function make_xml(model::GeneralizedContinuousTraitModel)
     mbd_xml = mbdXML(p_mat, id="diffusionModel")
 
     elements = [txxml, nxml, tmxml, mbd_xml]
-    org = Organizer(elements)
+    org = Organizer(elements, loggables = [var_mat])
 
     sub_model_components = Vector{Organizer}(undef, n_models)
 
@@ -326,7 +326,6 @@ function make_xml(model::GeneralizedContinuousTraitModel)
     for i = 1:n_models
         sub_model = models[i]
         sub_components = sub_model_components[i]
-        @show typeof(sub_model)
         sub_operators = setup_operators(sub_model, sub_components,
                 trait_likelihood = trait_likelihood)
         operators = [operators; sub_operators]

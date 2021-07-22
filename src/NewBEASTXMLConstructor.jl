@@ -6,7 +6,10 @@ export MBDModel,
        GeneralizedContinuousTraitModel,
        TraitData,
        make_xml,
-       run_test
+       run_test,
+       FactorModel,
+       RepeatedMeasuresModel,
+       AbstractDataModel
 
 
 using LightXML, UnPack, LinearAlgebra
