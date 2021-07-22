@@ -3,7 +3,7 @@ module NewBEASTXMLConstructor
 
 export MBDModel,
        FactorModel,
-       GeneralizedContinuousTraitModel,
+       JointTraitModel,
        TraitData,
        make_xml,
        run_test,
