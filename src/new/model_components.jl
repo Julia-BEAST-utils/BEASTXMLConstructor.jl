@@ -125,7 +125,27 @@ function model_elements(model::FactorModel;
 
 end
 
-function set_mask!(x::Vector{<:Real}, model::FactorModel, dim::Int, offset::Int)
+function set_correlation_mask!(x::AbstractVector{<:Real}, model::FactorModel,
+        dim::Int, offset::Int)
+    k = input_dim(model)
+
+    corr_offset = 0
+    for i = 1:offset #TODO: actually do math and replace for loop
+        corr_offset += dim - i
+    end
+
+    for row = (offset + 1):(k + offset - 1)
+        for col = 1:(offset - row + k)
+            x[corr_offset + col] = 0
+        end
+    end
+    return nothing
+end
+
+
+
+function set_diffusion_mask!(x::Vector{<:Real}, model::FactorModel,
+        dim::Int, offset::Int)
     k = input_dim(model)
     big_k = offset + k
     x[(offset + 1):big_k] .= 0
@@ -140,6 +160,7 @@ function set_mask!(x::Vector{<:Real}, model::FactorModel, dim::Int, offset::Int)
         corr_offset += dim - row
     end
 
+    # TODO: remove below
     @show offset
 
     L = zeros(dim, dim)
@@ -237,8 +258,14 @@ function setup_operators(::RepeatedMeasuresModel, org::Organizer;
     #TODO
     return GeneralizedXMLElement[]
 end
-function set_mask!(::Vector{<:Real}, ::RepeatedMeasuresModel, ::Int, ::Int)
+function set_diffusion_mask!(::Vector{<:Real}, ::RepeatedMeasuresModel,
+        ::Int, ::Int)
     # do nothing
+end
+
+function set_correlation_mask!(::Vector{<:Real}, ::RepeatedMeasuresModel,
+    ::Int, ::Int)
+# do nothing
 end
 
 
@@ -328,10 +355,20 @@ function make_xml(model::JointTraitModel)
 
     n_diff = div(q * (q + 1), 2)
     diff_mask = ones(Int, n_diff)
+    corr_mask = ones(Int, n_diff - q)
     offset = 0
     for sub_model in models
-        set_mask!(diff_mask, sub_model, q, offset)
+        set_diffusion_mask!(diff_mask, sub_model, q, offset)
+        set_correlation_mask!(corr_mask, sub_model, q, offset)
         offset += input_dim(sub_model)
+    end
+
+
+    diff_sub = @view diff_mask[(q + 1):end] #temporary solution
+    for i = 1:length(corr_mask)
+        if diff_sub[i] == 1 && corr_mask[i] == 1
+            corr_mask[i] = 0
+        end
     end
 
     diff_transform = multivariateCompoundTransformXML(
@@ -346,7 +383,16 @@ function make_xml(model::JointTraitModel)
             mask_parameter = parameterXML(value = diff_mask),
             transform = diff_transform)
 
-    operators = GeneralizedXMLElement[hmc_op]
+    # rw_mask = diff_mask[(q + 1):end] #should create new array w/ unlinked elements
+    # for i = 1:length(rw_mask)
+    #     rw_mask[i] = rw_mask[i] == 0 ? 1 : 0
+    # end
+    rw_op = randomWalkXML(maskedParameterXML(offdiag_param, corr_mask),
+        window_size = 0.1)
+
+
+
+    operators = GeneralizedXMLElement[hmc_op, rw_op]
     for i = 1:n_models
         sub_model = models[i]
         sub_components = sub_model_components[i]

@@ -290,6 +290,16 @@ function matrixParameterXML(X::AbstractMatrix{Float64};
     return matrixParameterXML(parameters, id = id)
 end
 
+
+function maskedParameterXML(parameter::GeneralizedXMLElement,
+        mask::Vector{<:Real}; id::Nullable{String} = nothing)
+    return GeneralizedXMLElement("maskedParameter", id = id,
+            children = [
+                    parameter,
+                    PassthroughXMLElement("mask", parameterXML(value = mask))
+            ])
+end
+
 ################################################################################
 ## traitDataLikelihood
 ################################################################################
@@ -514,6 +524,16 @@ function normalExtensionXML(;
             attributes = ["treeTraitName" => trait_name])
 end
 
+"""
+<randomWalkOperator windowSize="1.0" weight="3">
+    <parameter idref="exponential.growthRate"/>
+</randomWalkOperator>
+"""
+function randomWalkXML(parameter::GeneralizedXMLElement;
+        window_size::Float64 = 1.0, weight::Float64 = 1.0)
+    return GeneralizedXMLElement("randomWalkOperator", child = parameter,
+            attributes = [bn.WINDOW_SIZE => window_size, bn.WEIGHT => weight])
+end
 
 ################################################################################
 ## distributions

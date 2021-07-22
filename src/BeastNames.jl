@@ -329,4 +329,7 @@ const N_DATA = "NData"
 
 const FACTOR_PROPORTION_STATISTIC = "factorProportionStatistic"
 
+const RANDOM_WALK = "randomWalkOperator"
+const WINDOW_SIZE = "windowSize"
+
 end
