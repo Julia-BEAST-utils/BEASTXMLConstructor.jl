@@ -9,7 +9,8 @@ export MBDModel,
        run_test,
        FactorModel,
        RepeatedMeasuresModel,
-       AbstractDataModel
+       AbstractDataModel,
+       save_xml
 
 
 using LightXML, UnPack, LinearAlgebra

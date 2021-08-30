@@ -637,3 +637,30 @@ function logXML(elements::Vector{<:GeneralizedXMLElement}, log_every::Int;
     return GeneralizedXMLElement("log", id = id, children = elements,
             attributes = attrs)
 end
+
+
+################################################################################
+## Statistics
+################################################################################
+
+
+"""
+<traitLogger id="traitLogger" traitName="factors" taxonNameExplicit="true" nodes="external">
+    <treeModel idref="treeModel"/>
+    <traitDataLikelihood idref="traitLikelihood"/>
+</traitLogger>
+"""
+
+function traitLoggerXML(;
+        tree_model::GeneralizedXMLElement,
+        trait_likelihood::GeneralizedXMLElement,
+        trait_name::String = get_trait_name(trait_likelihood),
+        id::String = trait_name * ".traitLogger",
+        taxon_name_explicit::Bool = true,
+        nodes::String = bn.EXTERNAL)
+    return GeneralizedXMLElement(bn.TRAIT_LOGGER, id = id,
+            children = [tree_model, trait_likelihood],
+            attributes = [bn.TRAIT_NAME => trait_name,
+                    bn.TAXON_EXPLICIT => taxon_name_explicit,
+                    bn.NODES => nodes])
+end

@@ -409,6 +409,11 @@ function make_xml(model::JointTraitModel)
 
     org = vcat(org, Organizer(var_priors, priors = var_priors))
     push!(org.elements, ops)
+    push!(org.loggables, GeneralizedXMLElement("correlationMatrix",
+            id = "correlation",
+            child = var_mat))
+    push!(org.loggables, traitLoggerXML(tree_model = tmxml,
+            trait_likelihood = trait_likelihood))
 
 
 
@@ -430,6 +435,12 @@ function make_xml(model::JointTraitModel)
     beast = BEASTXMLDocument([org.elements; mcmc])
 
     return make_xml(beast)
+end
+
+function save_xml(model::JointTraitModel, path::String)
+    xml = make_xml(model)
+    LightXML.save_file(xml, path)
+    free(xml)
 end
 
 
