@@ -218,6 +218,7 @@ const EXTERNAL = "external"
 
 const PRODUCT_PARAMETER = "productParameter"
 const TRANSFORMED_PARAMETER = "transformedParameter"
+const TRANSFORMED_MULTIVARIATE_PARAMETER = "transformedMultivariateParameter"
 const TYPE = "type"
 const POWER = "power"
 const POWER_TRANSFORM = "powerTransform"

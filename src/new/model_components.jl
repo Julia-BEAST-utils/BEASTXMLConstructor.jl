@@ -23,6 +23,12 @@ end
 function JointTraitModel(models::Vector{<:AbstractDataModel},
         newick::String)
     n = length(models)
+
+    #put factor models first
+    priorities = priority.(models)
+    perm = sortperm(priorities)
+    models = models[perm]
+
     @assert n > 0
     taxa = get_taxa(models[1])
     for i = 2:n
@@ -92,6 +98,10 @@ end
 
 function input_dim(model::FactorModel)
     return size(model.L, 1)
+end
+
+function priority(::FactorModel)
+    return 1
 end
 
 function model_elements(model::FactorModel;
@@ -236,6 +246,10 @@ function RepeatedMeasuresModel(data::TraitData)
     return RepeatedMeasuresModel(data, Matrix(Diagonal(ones(p))))
 end
 
+function priority(::RepeatedMeasuresModel)
+    return 2
+end
+
 function model_elements(model::RepeatedMeasuresModel;
             tree_model::GeneralizedXMLElement, is_submodel::Bool = false)
     prec_id = is_submodel ?
@@ -289,26 +303,64 @@ end
 #             offdiagonal_prior::GeneralizedXMLElement,
 #             )
 
-function make_xml(model::JointTraitModel)
-    @unpack data, taxa, newick, models = model
+# function make_xml(model::JointTraitModel)
+
+#     models = model.models
+#     if length(models) > 1 && models[2] <: FactorModel
+#         return make_multiFactor_xml(model)
+#     else
+#         return make_simple_joint_xml(model)
+#     end
+# end
+
+function setup_taxa_and_tree(data::DataPairs, taxa::Vector{String}, newick::String)
     txxml = taxaXML(taxa, data)
     nxml = newickXML(newick)
     tmxml = treeModelXML(nxml, data, id = "treeModel")
 
+    return (taxa_xml = txxml, newick_xml = nxml, treeModel_xml = tmxml)
+end
+
+function multiFactor_correlation_parameters(n::Int)
+    decomp = matrixParameterXML(Diagonal(ones(n)), id="corr.decomp")
+    inner_prod = transformedParameterXML(decomp,
+        PassthroughXMLElement("matrixInnerProductTransform", decomp),
+        as_matrix=true,
+        id="corr.full")
+    mask = ones(Int, n, n)
+    for i = 1:n
+        for j = 1:(i - 1)
+            mask[i, j] = 0
+        end
+    end
+
+    masked = maskedParameterXML(inner_prod, vec(mask'), id="corr.upper")
+
+    return (decomposed_corr = decomp, full_corr = inner_prod, masked_corr = masked)
+end
+
+function make_multiFactor_xml(models::JointTraitModel)
+    @unpack data, taxa, newick, models = model
+
+    elements = setup_taxa_and_tree(data, taxa, newick)
 
     n_models = length(models)
     tree_dims = [input_dim(sub_model) for sub_model = models]
     q = sum(tree_dims)
 
-    var_mat = compoundSymmetricMatrixXML(q, "variance.diagonal",
-            "variance.offDiagonal", id="mbd.variance")
-    # println(make_element(var_mat))
-    p_mat = cachedMatrixInverseXML(var_mat, id = "mbd.precision")
+    corr_params = multiFactor_correlation_parameters(q)
+    @unpack decomposed_corr, full_corr, masked_corr = corr_params
+    elements = [elements; collect(corr_params)]
 
-    mbd_xml = mbdXML(p_mat, id="diffusionModel")
 
-    elements = [txxml, nxml, tmxml, mbd_xml]
-    org = Organizer(elements, loggables = [var_mat])
+    variance = parameterXML(value=ones(q), lower = zeros(q), id="variance.diagonal")
+
+    full_variance = compoundSymmetricMatrixXML(variance, masked_corr,
+            as_correlation = true, is_cholesky = false, id = "variance")
+
+    push!(elements, full_variance)
+
+    org = Organizer(elements, loggables = [variance, full_corr, decomposed_corr])
 
     sub_model_components = Vector{Organizer}(undef, n_models)
 
@@ -332,67 +384,156 @@ function make_xml(model::JointTraitModel)
     push!(org.elements, trait_likelihood)
     push!(org.likelihoods, trait_likelihood)
 
-    # diffusion priors + operator
-
-    diag_param = find_element(var_mat, name = "diagonal", passthrough = true)
-    offdiag_param = find_element(var_mat, name = "offDiagonal", passthrough = true)
-
-    diag_prior = halfTPriorXML(diag_param)
-    offdiag_prior = lkjPriorXML(offdiag_param, q)
-
-    var_priors = [diag_prior, offdiag_prior]
+end
 
 
-    diff_prior_grad = compoundGradientXML(
-            [[diag_prior, diag_param], [offdiag_prior]],
-            id="variance.prior.gradient")
-    diff_like_grad = diffusionGradientXML(trait_likelihood = trait_likelihood,
-            precision_parameter = p_mat,
-            id = "variance.likelihood.gradient")
 
-    diff_grad = jointGradientXML([diff_prior_grad, diff_like_grad],
-            id = "variance.gradient")
 
-    n_diff = div(q * (q + 1), 2)
-    diff_mask = ones(Int, n_diff)
-    corr_mask = ones(Int, n_diff - q)
-    offset = 0
-    for sub_model in models
-        set_diffusion_mask!(diff_mask, sub_model, q, offset)
-        set_correlation_mask!(corr_mask, sub_model, q, offset)
-        offset += input_dim(sub_model)
+function make_xml(model::JointTraitModel)
+    @unpack data, taxa, newick, models = model
+
+    is_multiFactor = count(x -> typeof(x) <: FactorModel, models) > 1
+
+
+    taxa_and_tree = setup_taxa_and_tree(data, taxa, newick)
+    org = Organizer(collect(taxa_and_tree))
+    @unpack taxa_xml, newick_xml, treeModel_xml = taxa_and_tree
+
+    n_models = length(models)
+    tree_dims = [input_dim(sub_model) for sub_model = models]
+    q = sum(tree_dims)
+
+
+    if is_multiFactor
+        corr_params = multiFactor_correlation_parameters(q)
+        @unpack decomposed_corr, full_corr, masked_corr = corr_params
+
+        push!(org, decomposed_corr, loggable = true)
+        push!(org, full_corr, loggable=true)
+
+
+        diag_var = parameterXML(value=ones(q), lower = zeros(q), id="variance.diagonal")
+
+        var_mat = compoundSymmetricMatrixXML(diag_var, masked_corr,
+                as_correlation = true, is_cholesky = false,
+                strictly_upper = false, id = "variance")
+    else
+        var_mat = compoundSymmetricMatrixXML(q, "variance.diagonal",
+                "variance.offDiagonal", id="mbd.variance")
+    end
+    p_mat = cachedMatrixInverseXML(var_mat, id = "mbd.precision")
+
+    mbd_xml = mbdXML(p_mat, id="diffusionModel")
+
+    push!(org, var_mat, loggable=true)
+    push!(org, mbd_xml)
+
+    sub_model_components = Vector{Organizer}(undef, n_models)
+
+    for i = 1:n_models
+        sub_model = models[i]
+        components = model_elements(sub_model, tree_model = treeModel_xml, is_submodel = true)
+        sub_model_components[i] = components
+        org = vcat(org,  components)
     end
 
-
-    diff_sub = @view diff_mask[(q + 1):end] #temporary solution
-    for i = 1:length(corr_mask)
-        if diff_sub[i] == 1 && corr_mask[i] == 1
-            corr_mask[i] = 0
-        end
-    end
-
-    diff_transform = multivariateCompoundTransformXML(
-                transformXML("log", dim = q),
-                lkjTransformXML(q)
+    joint_extension = GeneralizedXMLElement("jointPartialsProvider",
+            id = "jointModel",
+            children = org.partial_providers)
+    trait_likelihood = traitDataLikelihoodXML(
+            diffusion_model = mbd_xml,
+            tree_model = treeModel_xml,
+            extension_model = joint_extension,
+            root_mean = zeros(q)
     )
 
+    push!(org, trait_likelihood, likelihood = true)
 
-    hmc_op = hmcXML(gradient = diff_grad,
-            parameter = GeneralizedXMLElement("compoundParameter",
-                    children = [diag_param, offdiag_param]),
-            mask_parameter = parameterXML(value = diff_mask),
-            transform = diff_transform)
+    # diffusion priors + operator
+    operators = GeneralizedXMLElement[]
+
+
+    if is_multiFactor
+        diff_like_grad = diffusionGradientXML(trait_likelihood = trait_likelihood,
+                precision_parameter = p_mat,
+                id = "corr.likelihood.gradient",
+                parameter = "decomposedCorrelation")
+
+        orthogonality_structure = Vector{Int}[]
+        ind = 1
+        for i = 1:n_models
+            next_ind = ind + tree_dims[i]
+            if typeof(models[i]) <: FactorModel
+                rows = collect(ind:(next_ind - 1))
+                Base.push!(orthogonality_structure, rows)
+            end
+            ind = next_ind
+        end
+
+        hmc_op = hmcXML(gradient = diff_like_grad, parameter = decomposed_corr,
+                is_geodesic = true,
+                orthogonality_structure = orthogonality_structure)
+        push!(operators, hmc_op)
+    else
+        diag_param = find_element(var_mat, name = "diagonal", passthrough = true)
+        offdiag_param = find_element(var_mat, name = "offDiagonal", passthrough = true)
+
+        diag_prior = halfTPriorXML(diag_param)
+        offdiag_prior = lkjPriorXML(offdiag_param, q)
+
+        var_priors = [diag_prior, offdiag_prior]
+        push!.(Ref(org), var_priors, prior = true)
+
+        diff_prior_grad = compoundGradientXML(
+                [[diag_prior, diag_param], [offdiag_prior]],
+                id="variance.prior.gradient")
+        diff_like_grad = diffusionGradientXML(trait_likelihood = trait_likelihood,
+                precision_parameter = p_mat,
+                id = "variance.likelihood.gradient")
+
+        diff_grad = jointGradientXML([diff_prior_grad, diff_like_grad],
+                id = "variance.gradient")
+
+        n_diff = div(q * (q + 1), 2)
+        diff_mask = ones(Int, n_diff)
+        corr_mask = ones(Int, n_diff - q)
+        offset = 0
+        for sub_model in models
+            set_diffusion_mask!(diff_mask, sub_model, q, offset)
+            set_correlation_mask!(corr_mask, sub_model, q, offset)
+            offset += input_dim(sub_model)
+        end
+
+
+        diff_sub = @view diff_mask[(q + 1):end] #temporary solution
+        for i = 1:length(corr_mask)
+            if diff_sub[i] == 1 && corr_mask[i] == 1
+                corr_mask[i] = 0
+            end
+        end
+
+        diff_transform = multivariateCompoundTransformXML(
+                    transformXML("log", dim = q),
+                    lkjTransformXML(q)
+        )
+
+
+        hmc_op = hmcXML(gradient = diff_grad,
+                parameter = GeneralizedXMLElement("compoundParameter",
+                        children = [diag_param, offdiag_param]),
+                mask_parameter = parameterXML(value = diff_mask),
+                transform = diff_transform)
+
+        push!(operators, hmc_op)
+    end
 
     # rw_mask = diff_mask[(q + 1):end] #should create new array w/ unlinked elements
     # for i = 1:length(rw_mask)
     #     rw_mask[i] = rw_mask[i] == 0 ? 1 : 0
     # end
-    rw_op = randomWalkXML(maskedParameterXML(offdiag_param, corr_mask),
-        window_size = 0.1)
+    # rw_op = randomWalkXML(maskedParameterXML(offdiag_param, corr_mask),
+    #     window_size = 0.1)
 
-
-
-    operators = GeneralizedXMLElement[hmc_op, rw_op]
     for i = 1:n_models
         sub_model = models[i]
         sub_components = sub_model_components[i]
@@ -406,23 +547,14 @@ function make_xml(model::JointTraitModel)
 
 
 
-
-    org = vcat(org, Organizer(var_priors, priors = var_priors))
-    push!(org.elements, ops)
-    push!(org.loggables, GeneralizedXMLElement("correlationMatrix",
+    push!(org, ops)
+    push!(org, GeneralizedXMLElement("correlationMatrix",
             id = "correlation",
-            child = var_mat))
-    push!(org.loggables, traitLoggerXML(tree_model = tmxml,
-            trait_likelihood = trait_likelihood))
-
-
-
-
-
-    # TODO: likelihood
-    # TODO: operators
-
-
+            child = var_mat),
+            loggable=true)
+    push!(org, traitLoggerXML(tree_model = treeModel_xml,
+            trait_likelihood = trait_likelihood),
+            loggable=true)
 
     mcmc = mcmcXML(org, ops,
             chain_length = 1000,

@@ -29,3 +29,19 @@ function vcat(orgs::Organizer...)
     return Organizer(new_fields...) #TODO: will need to modify for more complex struct
 end
 
+import Base.push!
+function push!(org::Organizer, el::GeneralizedXMLElement;
+        loggable::Bool = false, likelihood::Bool = false, prior::Bool = false)
+    push!(org.elements, el)
+    if loggable
+        push!(org.loggables, el)
+    end
+    if likelihood
+        push!(org.likelihoods, el)
+    end
+    if prior
+        push!(org.priors, el)
+    end
+    return org
+end
+

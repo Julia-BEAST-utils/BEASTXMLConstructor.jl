@@ -235,10 +235,12 @@ function compoundSymmetricMatrixXML(
         offdiagonal_parameter::AbstractGeneralizedXMLElement;
         as_correlation::Bool = true,
         is_cholesky::Bool = true,
+        strictly_upper::Bool = true,
         id::StringOrNothing = nothing)
 
     attrs = ["asCorrelation" => as_correlation,
-             "isCholesky" => is_cholesky]
+             "isCholesky" => is_cholesky,
+             "isStrictlyUpperTriangular" => strictly_upper]
     children = [PassthroughXMLElement("diagonal", diagonal_parameter),
                 PassthroughXMLElement("offDiagonal", offdiagonal_parameter)]
     return GeneralizedXMLElement("compoundSymmetricMatrix", attributes = attrs,
@@ -292,7 +294,7 @@ end
 
 
 function maskedParameterXML(parameter::GeneralizedXMLElement,
-        mask::Vector{<:Real}; id::Nullable{String} = nothing)
+        mask::AbstractVector{<:Real}; id::Nullable{String} = nothing)
     return GeneralizedXMLElement("maskedParameter", id = id,
             children = [
                     parameter,
@@ -300,6 +302,18 @@ function maskedParameterXML(parameter::GeneralizedXMLElement,
             ])
 end
 
+
+function transformedParameterXML(parameter::GeneralizedXMLElement,
+        transform::AbstractGeneralizedXMLElement;
+        as_matrix::Bool = false,
+        is_multivariate::Bool = as_matrix,
+        id::Nullable{String} = nothing)
+    nm = is_multivariate ? bn.TRANSFORMED_MULTIVARIATE_PARAMETER : bn.TRANSFORMED_PARAMETER
+    attrs = is_multivariate && as_matrix ? [bn.AS_MATRIX => as_matrix] : Vector{Pair{String, String}}[]
+    return GeneralizedXMLElement(nm, children = [parameter, transform],
+            attributes = attrs,
+            id = id)
+end
 ################################################################################
 ## traitDataLikelihood
 ################################################################################
@@ -431,11 +445,12 @@ end
 
 function diffusionGradientXML(;trait_likelihood::GeneralizedXMLElement,
         precision_parameter::GeneralizedXMLElement,
-        id::StringOrNothing = nothing)
+        id::StringOrNothing = nothing,
+        parameter::String = "both")
 
     trait_name = get_attribute(trait_likelihood, "traitName")
     precision_gradient = GeneralizedXMLElement("precisionGradient",
-            attributes = ["parameter" => "both","traitName" => trait_name],
+            attributes = ["parameter" => parameter,"traitName" => trait_name],
             children = [trait_likelihood, precision_parameter])
     return GeneralizedXMLElement("diffusionGradient", id = id,
             child = precision_gradient)
@@ -456,7 +471,8 @@ function hmcXML(;
         draw_variance::Float64 = 1.0,
         gradient_check_count::Int = 0,
         gradient_check_tolerance::Float64 = 0.001,
-        is_geodesic::Bool = false)
+        is_geodesic::Bool = false,
+        orthogonality_structure::Vector{Vector{Int}} = Vector{Int}[])
 
     attrs = Pair{String, Any}["weight" => weight, "nSteps" => n_steps,
             "stepSize" => step_size,
@@ -473,6 +489,13 @@ function hmcXML(;
     end
     hmc_name = is_geodesic ? "geodesicHamiltonianMonteCarloOperator" :
             "hamiltonianMonteCarloOperator"
+
+    if is_geodesic && length(orthogonality_structure) > 0
+        structures = [GeneralizedXMLElement("x", attributes = ["rows" => rows])
+                for rows in orthogonality_structure]
+        push!(children, PassthroughXMLElement("orthogonalityStructure", structures))
+    end
+
     return GeneralizedXMLElement(hmc_name, children = children,
             attributes = attrs)
 end
