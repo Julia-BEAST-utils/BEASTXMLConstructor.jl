@@ -649,6 +649,14 @@ function mcmcXML(org::Organizer, operators::GeneralizedXMLElement;
     return mcmcXML(joint, operators, screen_log, file_log, chain_length)
 end
 
+function mcmcXML(org::Organizer, operators::GeneralizedXMLElement,
+        mcmc_options::MCMCOptions; file_name::String)
+
+    return mcmcXML(org, operators, chain_length = mcmc_options.chain_length,
+        file_logEvery = mcmc_options.file_log_every,
+        screen_logEvery = mcmc_options.screen_log_every, file_name = file_name)
+end
+
 function logXML(elements::Vector{<:GeneralizedXMLElement}, log_every::Int;
         id::StringOrNothing = nothing,
         overwrite::Union{Nothing, Bool} = nothing,

@@ -10,10 +10,14 @@ export MBDModel,
        FactorModel,
        RepeatedMeasuresModel,
        AbstractDataModel,
-       save_xml
+       save_xml,
+       MCMCOptions
 
 
 using LightXML, UnPack, LinearAlgebra
+
+include("MCMCOptionsProvider.jl")
+MCMCOptions = MCMCOptionsProvider.MCMCOptions
 
 include("BeastNames.jl")
 const bn = BeastNames
