@@ -137,14 +137,43 @@ function model_elements(model::FactorModel;
 
 end
 
-function set_correlation_mask!(x::AbstractVector{<:Real}, model::FactorModel,
-        dim::Int, offset::Int)
-    k = input_dim(model)
 
+
+function correlation_offset(offset::Int, dim::Int)
     corr_offset = 0
     for i = 1:offset #TODO: actually do math and replace for loop
         corr_offset += dim - i
     end
+    return corr_offset
+end
+
+function set_correlation_mask_full!(x::AbstractVector{<:Real},
+        model::FactorModel, dim::Int, offset::Int)
+
+    k = input_dim(model)
+
+    if offset == 0
+        for row = 1:k
+            for col = 1:dim
+                x[(row - 1) * dim + col] = 0
+            end
+        end
+    end
+
+
+    for row = (offset + 1):(offset + k)
+        for col = (offset + k + 1):dim
+            x[dim * (row - 1) + col] = 0
+        end
+    end
+end
+
+
+function set_correlation_mask!(x::AbstractVector{<:Real}, model::FactorModel,
+        dim::Int, offset::Int)
+    k = input_dim(model)
+
+    corr_offset = correlation_offset(offset, dim)
 
     for row = (offset + 1):(k + offset - 1)
         for col = 1:(offset - row + k)
@@ -173,7 +202,6 @@ function set_diffusion_mask!(x::Vector{<:Real}, model::FactorModel,
     end
 
     # TODO: remove below
-    @show offset
 
     L = zeros(dim, dim)
     ind = 0
@@ -185,7 +213,6 @@ function set_diffusion_mask!(x::Vector{<:Real}, model::FactorModel,
             L[j, i] = L[i, j]
         end
     end
-    display(L)
 end
 
 function setup_operators(::FactorModel, org::Organizer;
@@ -283,6 +310,20 @@ function set_correlation_mask!(::Vector{<:Real}, ::RepeatedMeasuresModel,
     ::Int, ::Int)
 # do nothing
 end
+
+
+function set_correlation_mask_full!(x::AbstractVector{<:Real},
+    model::RepeatedMeasuresModel, dim::Int, offset::Int)
+
+    k = input_dim(model)
+    for row = (offset + 1):(offset + k)
+        for col = (row + 1):dim
+            x[dim * (row - 1) + col] = 0
+        end
+    end
+
+end
+
 
 
 ################################################################################
@@ -473,9 +514,17 @@ function make_xml(model::JointTraitModel;
             ind = next_ind
         end
 
+        corr_mask = ones(Int, q * q)
+        offset = 0
+        for sub_model in models
+            set_correlation_mask_full!(corr_mask, sub_model, q, offset)
+            offset += input_dim(sub_model)
+        end
+
         hmc_op = hmcXML(gradient = diff_like_grad, parameter = decomposed_corr,
                 is_geodesic = true,
-                orthogonality_structure = orthogonality_structure)
+                orthogonality_structure = orthogonality_structure,
+                mask_parameter = parameterXML(value = corr_mask))
         push!(operators, hmc_op)
     else
         diag_param = find_element(var_mat, name = "diagonal", passthrough = true)
