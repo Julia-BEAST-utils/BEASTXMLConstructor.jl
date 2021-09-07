@@ -88,12 +88,13 @@ struct FactorModel <: AbstractDataModel
     data::TraitData
     L::Matrix{Float64} # k X p
     prec::Vector{Float64} # factor precision
+    standardize::Bool
 end
 
-function FactorModel(data::TraitData, k::Int)
+function FactorModel(data::TraitData, k::Int; standardize::Bool = true)
     p = size(data.data, 2)
     L = zeros(k, p)
-    return FactorModel(data, L, ones(p))
+    return FactorModel(data, L, ones(p), standardize)
 end
 
 function input_dim(model::FactorModel)
@@ -120,7 +121,8 @@ function model_elements(model::FactorModel;
         treeModel = tree_model,
         traitParameter = find_trait_parameter(tree_model, trait_name),
         trait_name = trait_name,
-        id = id_header * ".factormodel")
+        id = id_header * ".factormodel",
+        standardize = model.standardize)
 
     loadings_prior = distributionLikelihoodXML(data_parameter = loadings,
             distribution_model = standardNormalDistributionXML())
@@ -388,8 +390,9 @@ end
 
 
 
-
-function make_xml(model::JointTraitModel)
+function make_xml(model::JointTraitModel;
+        mcmc_options = MCMCOptions(),
+        file_name::String = "test.log")
     @unpack data, taxa, newick, models = model
 
     is_multiFactor = count(x -> typeof(x) <: FactorModel, models) > 1
@@ -556,11 +559,7 @@ function make_xml(model::JointTraitModel)
             trait_likelihood = trait_likelihood),
             loggable=true)
 
-    mcmc = mcmcXML(org, ops,
-            chain_length = 1000,
-            screen_logEvery = 10,
-            file_logEvery = 100,
-            file_name = "test.log")
+    mcmc = mcmcXML(org, ops, mcmc_options, file_name = file_name)
 
 
 
@@ -569,8 +568,14 @@ function make_xml(model::JointTraitModel)
     return make_xml(beast)
 end
 
-function save_xml(model::JointTraitModel, path::String)
-    xml = make_xml(model)
+function save_xml(model::JointTraitModel, path::String; kw_args...)
+    nm = basename(path)
+    if endswith(path, ".xml")
+        nm = nm[1:(end - 3)] * "log"
+    end
+
+    xml = make_xml(model, file_name = nm; kw_args...)
+
     LightXML.save_file(xml, path)
     free(xml)
 end
