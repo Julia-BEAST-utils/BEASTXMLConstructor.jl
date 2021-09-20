@@ -13,15 +13,17 @@ function input_dim(model::AbstractDataModel)
 end
 
 
-struct JointTraitModel{T <: AbstractDataModel}
+struct JointTraitModel{T <: AbstractDataModel, S <: AbstractMatrix{Float64}}
     data::DataPairs
     taxa::Vector{String}
     models::Vector{T}
+    diffusion_variance::S
     newick::String
 end
 
 function JointTraitModel(models::Vector{<:AbstractDataModel},
-        newick::String)
+        newick::String;
+        V::AbstractMatrix{Float64} = Diagonal(ones(sum(input_dim.(models)))))
     n = length(models)
 
     #put factor models first
@@ -37,7 +39,7 @@ function JointTraitModel(models::Vector{<:AbstractDataModel},
     end
 
     data = [get_traitname(models[i]) => get_data(models[i]) for i = 1:n]
-    return JointTraitModel(data, taxa, models, newick)
+    return JointTraitModel(data, taxa, models, V, newick)
 end
 
 ################################################################################
@@ -61,6 +63,18 @@ function TraitData(data::Matrix{Float64}, taxa::Vector{String};
         trait_name::String = "traits",
         trait_names::Vector{String} = ["trait_$i" for i = 1:size(data, 2)])
     return TraitData(data, taxa, trait_names, trait_name)
+end
+
+function TraitData(old_data::Matrix{Union{Missing, Float64}}, args...; kw_args...)
+    data = zeros(size(old_data))
+    for i = 1:length(data)
+        if ismissing(old_data[i])
+            data[i] = NaN
+        else
+            data[i] = old_data[i]
+        end
+    end
+    return TraitData(data, args...; kw_args...)
 end
 
 function get_taxa(model::AbstractDataModel)
@@ -364,8 +378,10 @@ function setup_taxa_and_tree(data::DataPairs, taxa::Vector{String}, newick::Stri
     return (taxa_xml = txxml, newick_xml = nxml, treeModel_xml = tmxml)
 end
 
-function multiFactor_correlation_parameters(n::Int)
-    decomp = matrixParameterXML(Diagonal(ones(n)), id="corr.decomp")
+function multiFactor_correlation_parameters(C::AbstractMatrix{Float64})
+    n = size(C, 1)
+    L = cholesky(C).L #need reverse cholesky (for now)
+    decomp = matrixParameterXML(L, id="corr.decomp")
     inner_prod = transformedParameterXML(decomp,
         PassthroughXMLElement("matrixInnerProductTransform", decomp),
         as_matrix=true,
@@ -380,6 +396,10 @@ function multiFactor_correlation_parameters(n::Int)
     masked = maskedParameterXML(inner_prod, vec(mask'), id="corr.upper")
 
     return (decomposed_corr = decomp, full_corr = inner_prod, masked_corr = masked)
+end
+
+function multiFactor_correlation_parameters(n::Int)
+    multiFactor_correlation_parameters(Diagonal(ones(n)))
 end
 
 function make_multiFactor_xml(models::JointTraitModel)
@@ -449,14 +469,20 @@ function make_xml(model::JointTraitModel;
 
 
     if is_multiFactor
-        corr_params = multiFactor_correlation_parameters(q)
+        S = inv(Diagonal(sqrt.(diag(model.diffusion_variance))))
+        C = Hermitian(S * model.diffusion_variance * S)
+
+        corr_params = multiFactor_correlation_parameters(C)
         @unpack decomposed_corr, full_corr, masked_corr = corr_params
+        decomposed_corr_prior = determinantPriorXML(decomposed_corr)
+
 
         push!(org, decomposed_corr, loggable = true)
-        push!(org, full_corr, loggable=true)
+        push!(org, decomposed_corr_prior, prior = true)
+        # push!(org, full_corr, loggable=true)
 
 
-        diag_var = parameterXML(value=ones(q), lower = zeros(q), id="variance.diagonal")
+        diag_var = parameterXML(value=diag(model.diffusion_variance), lower = zeros(q), id="variance.diagonal")
 
         var_mat = compoundSymmetricMatrixXML(diag_var, masked_corr,
                 as_correlation = true, is_cholesky = false,
@@ -523,7 +549,7 @@ function make_xml(model::JointTraitModel;
 
         hmc_op = hmcXML(gradient = diff_like_grad, parameter = decomposed_corr,
                 is_geodesic = true,
-                orthogonality_structure = orthogonality_structure,
+                # orthogonality_structure = orthogonality_structure,
                 mask_parameter = parameterXML(value = corr_mask))
         push!(operators, hmc_op)
     else
