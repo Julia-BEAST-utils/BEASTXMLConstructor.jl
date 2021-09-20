@@ -93,8 +93,18 @@ function taxonXML(taxon::String,
 end
 
 function traitAttr(attr::Pair{String, <:AbstractArray{Float64}})
+    values = attr[2]
+    n = length(values)
+    formatted_values = fill("", n)
+    for i = 1:n
+        if isnan(values[i])
+            formatted_values[i] = "NA"
+        else
+            formatted_values[i] = string(values[i])
+        end
+    end
     return GeneralizedXMLElement("attr", attributes = ["name" => attr[1]],
-        content = attr[2])
+        content = join(formatted_values, ' '))
 end
 
 ################################################################################
@@ -415,6 +425,15 @@ function halfTPriorXML(parameter::GeneralizedXMLElement;
     return GeneralizedXMLElement("halfTPrior", id = id, child = parameter,
             attributes = Pair{String, Any}["scale" => scale, "df" => df]
     )
+end
+
+function determinantPriorXML(parameter::GeneralizedXMLElement,
+        shape_parameter::Float64 = 2.0,
+        id::String = prior_id(parameter))
+
+    attrs = Pair{String, Any}["shapeParameter" => shape_parameter]
+    return GeneralizedXMLElement("determinantPrior", id = id, attributes = attrs,
+        child = parameter)
 end
 
 
