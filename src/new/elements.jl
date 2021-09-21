@@ -427,8 +427,8 @@ function halfTPriorXML(parameter::GeneralizedXMLElement;
     )
 end
 
-function determinantPriorXML(parameter::GeneralizedXMLElement,
-        shape_parameter::Float64 = 2.0,
+function determinantPriorXML(parameter::GeneralizedXMLElement;
+        shape_parameter::Real = 1.0,
         id::String = prior_id(parameter))
 
     attrs = Pair{String, Any}["shapeParameter" => shape_parameter]

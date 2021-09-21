@@ -378,6 +378,12 @@ function setup_taxa_and_tree(data::DataPairs, taxa::Vector{String}, newick::Stri
     return (taxa_xml = txxml, newick_xml = nxml, treeModel_xml = tmxml)
 end
 
+import LinearAlgebra.cholesky
+function cholesky(X::Hermitian{Float64, Diagonal{Float64, Vector{Float64}}})
+    return cholesky(X.data)
+end
+
+
 function multiFactor_correlation_parameters(C::AbstractMatrix{Float64})
     n = size(C, 1)
     L = cholesky(C).L #need reverse cholesky (for now)
@@ -402,52 +408,6 @@ function multiFactor_correlation_parameters(n::Int)
     multiFactor_correlation_parameters(Diagonal(ones(n)))
 end
 
-function make_multiFactor_xml(models::JointTraitModel)
-    @unpack data, taxa, newick, models = model
-
-    elements = setup_taxa_and_tree(data, taxa, newick)
-
-    n_models = length(models)
-    tree_dims = [input_dim(sub_model) for sub_model = models]
-    q = sum(tree_dims)
-
-    corr_params = multiFactor_correlation_parameters(q)
-    @unpack decomposed_corr, full_corr, masked_corr = corr_params
-    elements = [elements; collect(corr_params)]
-
-
-    variance = parameterXML(value=ones(q), lower = zeros(q), id="variance.diagonal")
-
-    full_variance = compoundSymmetricMatrixXML(variance, masked_corr,
-            as_correlation = true, is_cholesky = false, id = "variance")
-
-    push!(elements, full_variance)
-
-    org = Organizer(elements, loggables = [variance, full_corr, decomposed_corr])
-
-    sub_model_components = Vector{Organizer}(undef, n_models)
-
-    for i = 1:n_models
-        sub_model = models[i]
-        components = model_elements(sub_model, tree_model = tmxml, is_submodel = true)
-        sub_model_components[i] = components
-        org = vcat(org,  components)
-    end
-
-    joint_extension = GeneralizedXMLElement("jointPartialsProvider",
-            id = "jointModel",
-            children = org.partial_providers)
-    trait_likelihood = traitDataLikelihoodXML(
-            diffusion_model = mbd_xml,
-            tree_model = tmxml,
-            extension_model = joint_extension,
-            root_mean = zeros(q)
-    )
-
-    push!(org.elements, trait_likelihood)
-    push!(org.likelihoods, trait_likelihood)
-
-end
 
 
 
@@ -547,10 +507,17 @@ function make_xml(model::JointTraitModel;
             offset += input_dim(sub_model)
         end
 
-        hmc_op = hmcXML(gradient = diff_like_grad, parameter = decomposed_corr,
+        prior_grad = GeneralizedXMLElement("gradient",
+            children = [decomposed_corr_prior, decomposed_corr])
+
+        hmc_op = hmcXML(
+                gradient = GeneralizedXMLElement("jointGradient",
+                        children = [diff_like_grad, prior_grad]),
+                parameter = decomposed_corr,
                 is_geodesic = true,
                 # orthogonality_structure = orthogonality_structure,
-                mask_parameter = parameterXML(value = corr_mask))
+                mask_parameter = parameterXML(value = corr_mask)
+                )
         push!(operators, hmc_op)
     else
         diag_param = find_element(var_mat, name = "diagonal", passthrough = true)
