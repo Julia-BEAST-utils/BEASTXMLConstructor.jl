@@ -6,6 +6,7 @@ function make_pfa_xml(data::Matrix{Float64}, taxa::Vector{T},
             useHMC::Bool=true,
             timing::Bool=false,
             log_factors::Bool=false,
+            standardize::Bool = true,
             # shrink_loadings::Bool=false,
             fle::Int=10,
             sle::Int=100) where T <: AbstractString
@@ -25,6 +26,7 @@ function make_pfa_xml(data::Matrix{Float64}, taxa::Vector{T},
     add_child(beastXML, mbd_el)
 
     if_el = IntegratedFactorsXMLElement(treeModel_el, k)
+    if_el.standardize_traits = standardize
     add_child(beastXML, if_el)
 
     # if shrink_loadings
