@@ -230,29 +230,44 @@ function set_diffusion_mask!(x::Vector{<:Real}, model::FactorModel,
 end
 
 function setup_operators(::FactorModel, org::Organizer;
-        trait_likelihood::GeneralizedXMLElement)
+        trait_likelihood::GeneralizedXMLElement,
+        loadings_operator::String = "hmc")
 
     @assert length(org.partial_providers) == 1
     provider = org.partial_providers[1]
     super_provider = find_partials_provider(trait_likelihood)
 
-    super_model = super_provider !== provider
-
-    loadings_gradient_providers = [provider, trait_likelihood]
-    if super_model
-        push!(loadings_gradient_providers, super_provider)
-    end
-
-    loadings_like_grad = GeneralizedXMLElement(
-            "integratedFactorAnalysisLoadingsGradient",
-            children = loadings_gradient_providers)
-
     loadings = find_loadings(provider)
     loadings_prior = find_prior(org, loadings)
 
-    loadings_prior_grad = gradientXML([loadings_prior, loadings])
-    loadings_grad = jointGradientXML([loadings_like_grad, loadings_prior_grad])
-    loadings_op = hmcXML(gradient = loadings_grad, parameter = loadings)
+    if lowercase(loadings_operator) == "hmc"
+
+        super_model = super_provider !== provider
+
+        loadings_gradient_providers = [provider, trait_likelihood]
+        if super_model
+            push!(loadings_gradient_providers, super_provider)
+        end
+
+
+        loadings_like_grad = GeneralizedXMLElement(
+                "integratedFactorAnalysisLoadingsGradient",
+                children = loadings_gradient_providers)
+
+
+
+        loadings_prior_grad = gradientXML([loadings_prior, loadings])
+        loadings_grad = jointGradientXML([loadings_like_grad, loadings_prior_grad])
+        loadings_op = hmcXML(gradient = loadings_grad, parameter = loadings)
+    elseif lowercase(loadings_operator) == "gibbs"
+        loadings_op = GeneralizedXMLElement(bn.LOADINGS_GIBBS_OP,
+                children = [provider, trait_likelihood, loadings_prior],
+                attributes = [bn.WEIGHT => 1.0, bn.RANDOM_SCAN => false,
+                              bn.NEW_MODE => true, bn.CONSTRAINT => "none",
+                              bn.SPARSITY => "none"])
+    else
+        error("unrecognized loadings operator type '$loadings_operator'")
+    end
 
     precision = find_factor_precision(provider)
     prec_provider = normalExtensionXML(extension = provider, likelihood = trait_likelihood)
@@ -311,7 +326,7 @@ function model_elements(model::RepeatedMeasuresModel;
 end
 
 function setup_operators(::RepeatedMeasuresModel, org::Organizer;
-        trait_likelihood::GeneralizedXMLElement)
+        trait_likelihood::GeneralizedXMLElement, args...)
     #TODO
     return GeneralizedXMLElement[]
 end
@@ -413,7 +428,8 @@ end
 
 function make_xml(model::JointTraitModel;
         mcmc_options = MCMCOptions(),
-        file_name::String = "test.log")
+        file_name::String = "test.log",
+        loadings_operator::String = "hmc")
     @unpack data, taxa, newick, models = model
 
     is_multiFactor = count(x -> typeof(x) <: FactorModel, models) > 1
@@ -583,7 +599,8 @@ function make_xml(model::JointTraitModel;
         sub_model = models[i]
         sub_components = sub_model_components[i]
         sub_operators = setup_operators(sub_model, sub_components,
-                trait_likelihood = trait_likelihood)
+                trait_likelihood = trait_likelihood,
+                loadings_operator = loadings_operator)
         operators = [operators; sub_operators]
     end
 
