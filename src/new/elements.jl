@@ -484,6 +484,7 @@ function hmcXML(;
         parameter::GeneralizedXMLElement,
         transform::Union{GeneralizedXMLElement, Nothing} = nothing,
         mask_parameter::Nullable{GeneralizedXMLElement} = nothing,
+        mask::Nullable{Vector{<:Real}} = nothing,
         weight::Float64 = 1.0,
         n_steps::Int = 10,
         step_size::Float64 = 0.01,
@@ -492,6 +493,10 @@ function hmcXML(;
         gradient_check_tolerance::Float64 = 0.001,
         is_geodesic::Bool = false,
         orthogonality_structure::Vector{Vector{Int}} = Vector{Int}[])
+
+    if !isnothing(mask_parameter) && !isnothing(mask)
+        throw(ArgumentError("cannot supply both 'mask' and 'mask_parameter' keyword arguments"))
+    end
 
     attrs = Pair{String, Any}["weight" => weight, "nSteps" => n_steps,
             "stepSize" => step_size,
@@ -503,9 +508,15 @@ function hmcXML(;
     if !isnothing(transform)
         push!(children, transform)
     end
+
+    if !isnothing(mask)
+        mask_parameter = parameterXML(value = mask)
+    end
+
     if !isnothing(mask_parameter)
         push!(children, PassthroughXMLElement("mask", mask_parameter))
     end
+
     hmc_name = is_geodesic ? "geodesicHamiltonianMonteCarloOperator" :
             "hamiltonianMonteCarloOperator"
 
