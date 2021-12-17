@@ -297,6 +297,14 @@ end
 struct RepeatedMeasuresModel <: AbstractDataModel
     data::TraitData
     precision::Matrix{Float64}
+
+    function RepeatedMeasuresModel(data::TraitData, precision::AbstractMatrix{Float64})
+        if !isposdef(precision)
+            throw(ArgumentError("precision matrix must be positive-definite"))
+        end
+
+        return new(data, Matrix(precision))
+    end
 end
 
 function RepeatedMeasuresModel(data::TraitData)
@@ -531,8 +539,8 @@ function make_xml(model::JointTraitModel;
                         children = [diff_like_grad, prior_grad]),
                 parameter = decomposed_corr,
                 is_geodesic = true,
-                # orthogonality_structure = orthogonality_structure,
-                mask_parameter = parameterXML(value = corr_mask)
+                orthogonality_structure = orthogonality_structure
+                # mask_parameter = parameterXML(value = corr_mask)
                 )
         push!(operators, hmc_op)
     else
