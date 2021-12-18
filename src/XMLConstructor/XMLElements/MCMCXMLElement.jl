@@ -57,6 +57,20 @@ mutable struct MCMCXMLElement <: MyXMLElement
 
     function MCMCXMLElement(tl_el::TraitLikelihoodXMLElement,
                     mbd_el::MBDXMLElement,
+                    os_el::OperatorsXMLElement; chain_length = 100)
+        fle = max(1, div(chain_length, 1000))
+        sle = 1000
+        filename = "defaultFile"
+        lg_el = LoggablesXMLElement([mbd_el], [true])
+        attrs = Dict(bn.AUTO_OPTIMIZE => bn.TRUE)
+
+        return new(nothing, CompoundLikelihood("likelihood", [tl_el]), [mbd_el], os_el, chain_length,
+                    fle, sle, lg_el, filename, true, attrs,
+                    MyXMLElement[])
+    end
+
+    function MCMCXMLElement(tl_el::TraitLikelihoodXMLElement,
+                    mbd_el::MBDXMLElement,
                     rm_el::RepeatedMeasuresXMLElement,
                     os_el::OperatorsXMLElement,
                     loggables::LoggablesXMLElement;

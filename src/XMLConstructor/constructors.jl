@@ -287,6 +287,46 @@ function make_residual_xml(data::Matrix{Float64}, taxa::Vector{T},
     return beastXML
 end
 
+function make_mbd_xml(data::Matrix{Float64}, taxa::Vector{T},
+    newick::String; chain_length=100) where T <: AbstractString
+
+    beastXML = BEASTXMLElement()
+    data_el = DataXMLElement(data, taxa)
+    add_child(beastXML, data_el)
+
+    newick_el = NewickXMLElement(newick)
+    add_child(beastXML, newick_el)
+
+    treeModel_el = TreeModelXMLElement(newick_el, size(data, 2))
+    add_child(beastXML, treeModel_el)
+
+    MBD_el = MBDXMLElement(size(data, 2))
+    add_child(beastXML, MBD_el)
+
+    traitLikelihood_el = TraitLikelihoodXMLElement(MBD_el, treeModel_el,
+                                                nothing)
+    add_child(beastXML, traitLikelihood_el)
+
+
+    precision_operator = PrecisionGibbsOperatorXMLElement(traitLikelihood_el,
+                                                        MBD_el)
+
+    operators_el = OperatorsXMLElement(precision_operator)
+    add_child(beastXML, operators_el)
+
+    mcmc_el = MCMCXMLElement(traitLikelihood_el,
+                            MBD_el,
+                            operators_el,
+                            chain_length=chain_length
+                            )
+    add_child(beastXML, mcmc_el)
+
+    timer_el = TimerXMLElement(mcmc_el)
+    add_child(beastXML, timer_el)
+
+    return beastXML
+end
+
 
 function make_joint_xml(newick::String, dm::DataModel, jpm::JointProcessModel)
     beastXML = BEASTXMLElement()
