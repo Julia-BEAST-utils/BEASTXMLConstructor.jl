@@ -25,6 +25,10 @@ function make_xml(gdt::GeneralDataType)
         set_attribute(state_el, bn.CODE, gdt.states[i])
     end
 
+    ambiguity = new_child(el, "ambiguity")
+    set_attribute(ambiguity, bn.CODE, MISSING_CHAR)
+    set_attribute(ambiguity, "states", join(gdt.states))
+
     gdt.el = el
     return el
 end
@@ -34,7 +38,8 @@ end
 ## aligments
 ################################################################################
 
-const MISSING_SEQUENCE = 9
+const MISSING_SEQUENCE = -1
+const MISSING_CHAR = '?'
 
 mutable struct Alignment <: MyXMLElement
     el::XMLOrNothing
@@ -235,9 +240,9 @@ function find_state(x::Float64, thresholds::Vector{Float64})
     n = length(thresholds)
 
     if isnan(x)
-        if n >= MISSING_SEQUENCE
-            error("Cannot accomodate more than $MISSING_SEQUENCE patterns current missing code.")
-        end
+        # if n >= MISSING_SEQUENCE
+        #     error("Cannot accomodate more than $MISSING_SEQUENCE patterns current missing code.")
+        # end
         return MISSING_SEQUENCE
     end
 
@@ -293,12 +298,14 @@ const ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 function add_latent_liability(bx::BEASTXMLElement, trait_names::Vector{String}, states::Vector{Int})
     m = length(trait_names)
     mx = maximum(states)
+
     if mx >= length(ALPHABET)
         error("Cannot accommodated more than $(length(ALPHABET)) unique discrete states.")
     end
 
-    str_states = [ALPHABET[i] for i = 1:(mx + 1)]  # need to add 1 for zero state
-    state_dict = Dict(i => str_states[i + 1] for i = 0:mx)
+    str_states = [ALPHABET[i] for i = 1:mx]
+    state_dict = Dict(i => str_states[i + 1] for i = 0:(mx - 1))
+    state_dict[MISSING_SEQUENCE] = MISSING_CHAR
 
     gdt = GeneralDataType(str_states, "discreteStates")
     ops_ind = find_element_ind(bx, OperatorsXMLElement)
@@ -306,7 +313,7 @@ function add_latent_liability(bx::BEASTXMLElement, trait_names::Vector{String}, 
     add_child(bx, gdt, ops_ind)
 
     for nm in trait_names
-        latent_liablity = latent_liablity_elements(bx, nm, states, state_dict,
+        latent_liability = latent_liability_elements(bx, nm, states, state_dict,
                 gdt)
     end
 end
@@ -340,7 +347,7 @@ end
 
 
 
-function latent_liablity_elements(bx::BEASTXMLElement, trait_name::String,
+function latent_liability_elements(bx::BEASTXMLElement, trait_name::String,
                                   states::Vector{Int},
                                   states_dict::Dict{Int, Char},
                                   gdt::GeneralDataType)
