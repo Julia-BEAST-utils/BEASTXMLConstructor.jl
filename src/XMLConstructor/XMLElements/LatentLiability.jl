@@ -1,16 +1,16 @@
 mutable struct GeneralDataType <: MyXMLElement
     el::XMLOrNothing
-    states::Vector{Int}
+    states::Vector{Char}
     id::String
 
-    function GeneralDataType(states::Vector{Int}, id::String)
+    function GeneralDataType(states::Vector{Char}, id::String)
         return new(nothing, states, id::String)
     end
 end
 
-function GeneralDataType(n::Int; id::String = "discreteStates")
-    return GeneralDataType(collect(0:(n - 1)), id)
-end
+# function GeneralDataType(n::Int; id::String = "discreteStates")
+#     return GeneralDataType(collect(0:(n - 1)), id)
+# end
 
 function name(::GeneralDataType)
     return bn.GENERAL_DATA_TYPE
@@ -25,6 +25,10 @@ function make_xml(gdt::GeneralDataType)
         set_attribute(state_el, bn.CODE, gdt.states[i])
     end
 
+    ambiguity = new_child(el, "ambiguity")
+    set_attribute(ambiguity, bn.CODE, MISSING_CHAR)
+    set_attribute(ambiguity, "states", join(gdt.states))
+
     gdt.el = el
     return el
 end
@@ -34,18 +38,19 @@ end
 ## aligments
 ################################################################################
 
-const MISSING_SEQUENCE = 9
+const MISSING_SEQUENCE = -1
+const MISSING_CHAR = '?'
 
 mutable struct Alignment <: MyXMLElement
     el::XMLOrNothing
     data_type::MyXMLElement
     taxa::Vector{<:AbstractString}
-    sequences::Matrix{Int}
+    sequences::Matrix{Char}
     id::String
 
     function Alignment(data_type::MyXMLElement,
                         taxa::Vector{<:AbstractString},
-                        sequences::Matrix{Int};
+                        sequences::Matrix{Char};
                         id::String = bn.ALIGNMENT)
         @assert length(taxa) == size(sequences, 1)
         return new(nothing, data_type, taxa, sequences, id)
@@ -64,7 +69,8 @@ function make_xml(al::Alignment)
         seq_el = new_child(el, bn.SEQUENCE)
         taxon_el = new_child(seq_el, bn.TAXON)
         set_attribute(taxon_el, bn.IDREF, al.taxa[i])
-        seq_text = join(al.sequences[i, :], ' ')
+        seq_brackets = ["$x" for x in al.sequences[i, :]]
+        seq_text = join(seq_brackets, ' ')
         add_text(seq_el, seq_text)
     end
 
@@ -234,9 +240,9 @@ function find_state(x::Float64, thresholds::Vector{Float64})
     n = length(thresholds)
 
     if isnan(x)
-        if n >= MISSING_SEQUENCE
-            error("Cannot accomodate more than $MISSING_SEQUENCE patterns current missing code.")
-        end
+        # if n >= MISSING_SEQUENCE
+        #     error("Cannot accomodate more than $MISSING_SEQUENCE patterns current missing code.")
+        # end
         return MISSING_SEQUENCE
     end
 
@@ -249,7 +255,8 @@ function find_state(x::Float64, thresholds::Vector{Float64})
     return n
 end
 
-function data_to_alignment(data::Matrix{Float64}, states::Vector{Int};
+function data_to_alignment(data::Matrix{Float64}, states::Vector{Int},
+            states_dict::Dict{Int, Char};
             thresholds::Vector{Vector{Float64}} = default_thresholds.(states),
             bin_discrete::Bool = false)
 
@@ -275,7 +282,9 @@ function data_to_alignment(data::Matrix{Float64}, states::Vector{Int};
         end
     end
 
-    return sequences
+    str_sequences = [states_dict[sequences[i, j]] for i = 1:n, j = 1:p]
+
+    return str_sequences
 
 end
 
@@ -283,15 +292,29 @@ end
 ## latent liability
 ################################################################################
 
+
+const ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
 function add_latent_liability(bx::BEASTXMLElement, trait_names::Vector{String}, states::Vector{Int})
     m = length(trait_names)
-    gdt = GeneralDataType(maximum(states))
+    mx = maximum(states)
+
+    if mx >= length(ALPHABET)
+        error("Cannot accommodated more than $(length(ALPHABET)) unique discrete states.")
+    end
+
+    str_states = [ALPHABET[i] for i = 1:mx]
+    state_dict = Dict(i => str_states[i + 1] for i = 0:(mx - 1))
+    state_dict[MISSING_SEQUENCE] = MISSING_CHAR
+
+    gdt = GeneralDataType(str_states, "discreteStates")
     ops_ind = find_element_ind(bx, OperatorsXMLElement)
 
     add_child(bx, gdt, ops_ind)
 
     for nm in trait_names
-        latent_liablity = latent_liablity_elements(bx, nm, states, gdt)
+        latent_liability = latent_liability_elements(bx, nm, states, state_dict,
+                gdt)
     end
 end
 
@@ -317,12 +340,17 @@ function add_latent_liability(bx::BEASTXMLElement, discrete_inds::Vector{Int})
 
     set_factor_precision_indices(bx, setdiff(1:p, discrete_inds))
 
+
+
     add_latent_liability(bx, data_el.trait_names, states)
 end
 
 
 
-function latent_liablity_elements(bx::BEASTXMLElement, trait_name::String, states::Vector{Int}, gdt::GeneralDataType)
+function latent_liability_elements(bx::BEASTXMLElement, trait_name::String,
+                                  states::Vector{Int},
+                                  states_dict::Dict{Int, Char},
+                                  gdt::GeneralDataType)
 
     data_el = find_element(bx, DataXMLElement)
     treeModel = find_element(bx, TreeModelXMLElement)
@@ -343,7 +371,7 @@ function latent_liablity_elements(bx::BEASTXMLElement, trait_name::String, state
     trait_ind = findfirst(isequal(trait_name), data_el.trait_names)
     data = data_el.data_mats[trait_ind]
 
-    sequence = data_to_alignment(data, states)
+    sequence = data_to_alignment(data, states, states_dict)
     alignment = Alignment(gdt, taxa, sequence, id=trait_name * ".alignment")
     pattern = Patterns(alignment, id=trait_name * ".patterns")
 

@@ -40,7 +40,7 @@ function make_parameter(;id::String = "",
         set_attribute(el, bn.ID, id)
     end
     if length(value) != 0
-        set_attribute(el, bn.VALUE, join(value, ' '))
+        set_attribute(el, bn.VALUE, parameter_join(value))
     end
     if !isnan(lower)
         set_attribute(el, bn.LOWER, lower)
@@ -53,6 +53,22 @@ function make_parameter(;id::String = "",
     end
 
     return el
+end
+
+function parameter_join(x::AbstractVector{<:Real})
+    n = length(x)
+    string_x = Vector{String}(undef, n)
+    for i = 1:n
+        if x[i] == Inf
+            string_x[i] = "Infinity"
+        elseif x == -Inf
+            string_x[i] = "-Infinity"
+        else
+            string_x[i] = string(x[i])
+        end
+    end
+
+    return join(string_x, ' ')
 end
 
 function name(::Parameter)

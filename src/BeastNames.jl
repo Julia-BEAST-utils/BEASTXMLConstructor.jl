@@ -218,6 +218,7 @@ const EXTERNAL = "external"
 
 const PRODUCT_PARAMETER = "productParameter"
 const TRANSFORMED_PARAMETER = "transformedParameter"
+const TRANSFORMED_MULTIVARIATE_PARAMETER = "transformedMultivariateParameter"
 const TYPE = "type"
 const POWER = "power"
 const POWER_TRANSFORM = "powerTransform"
@@ -328,5 +329,8 @@ const N_TRAITS = "NTraits"
 const N_DATA = "NData"
 
 const FACTOR_PROPORTION_STATISTIC = "factorProportionStatistic"
+
+const RANDOM_WALK = "randomWalkOperator"
+const WINDOW_SIZE = "windowSize"
 
 end
