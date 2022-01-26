@@ -313,19 +313,21 @@ end
 struct RepeatedMeasuresModel <: AbstractDataModel
     data::TraitData
     precision::Matrix{Float64}
+    standardize::Bool
 
-    function RepeatedMeasuresModel(data::TraitData, precision::AbstractMatrix{Float64})
+    function RepeatedMeasuresModel(data::TraitData, precision::AbstractMatrix{Float64};
+                                   standardize::Bool = false)
         if !isposdef(precision)
             throw(ArgumentError("precision matrix must be positive-definite"))
         end
 
-        return new(data, Matrix(precision))
+        return new(data, Matrix(precision), standardize)
     end
 end
 
-function RepeatedMeasuresModel(data::TraitData)
+function RepeatedMeasuresModel(data::TraitData; kwargs...)
     p = size(data, 2)
-    return RepeatedMeasuresModel(data, Matrix(Diagonal(ones(p))))
+    return RepeatedMeasuresModel(data, Matrix(Diagonal(ones(p))); kwargs...)
 end
 
 function priority(::RepeatedMeasuresModel)
@@ -341,7 +343,8 @@ function model_elements(model::RepeatedMeasuresModel;
     trait_name = get_traitdata(model).trait_name
 
     rm = repeatedMeasuresModelXML(tree_model = tree_model, precision = prec,
-            trait_name = trait_name)
+            trait_name = trait_name,
+            standardize = model.standardize)
 
 
     return Organizer([rm], loggables = [prec], partial_providers = [rm])

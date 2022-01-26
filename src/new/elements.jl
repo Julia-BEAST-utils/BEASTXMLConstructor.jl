@@ -49,7 +49,8 @@ function repeatedMeasuresModelXML(;
             tree_model::GeneralizedXMLElement,
             precision::GeneralizedXMLElement,
             trait_name::String,
-            id::String = "$trait_name.residualModel"
+            id::String = "$trait_name.residualModel",
+            standardize::Bool = false
             )
     trait_parameter = find_trait_parameter(tree_model, trait_name)
 
@@ -59,7 +60,7 @@ function repeatedMeasuresModelXML(;
                     PassthroughXMLElement("traitParameter", trait_parameter),
                     PassthroughXMLElement("samplingPrecision", precision)
                     ],
-            attributes = [bn.TRAIT_NAME => trait_name])
+            attributes = [bn.TRAIT_NAME => trait_name, bn.STANDARDIZE => standardize])
 end
 
 ################################################################################
