@@ -5,6 +5,7 @@ export MBDModel,
        FactorModel,
        JointTraitModel,
        TraitData,
+       parse_traitdata,
        make_xml,
        run_test,
        FactorModel,
@@ -14,7 +15,7 @@ export MBDModel,
        MCMCOptions
 
 
-using LightXML, UnPack, LinearAlgebra
+using LightXML, UnPack, LinearAlgebra, DataFrames, CSV
 
 include("MCMCOptionsProvider.jl")
 MCMCOptions = MCMCOptionsProvider.MCMCOptions

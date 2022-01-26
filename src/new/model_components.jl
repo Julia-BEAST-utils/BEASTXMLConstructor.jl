@@ -94,6 +94,22 @@ function get_traitdata(model::AbstractDataModel)::TraitData
     return model.data
 end
 
+function parse_traitdata(path::String; kwargs...)
+    df = CSV.read(path, DataFrame)
+    parse_traitdata(df; kwargs...)
+end
+
+function parse_traitdata(df::DataFrame; trait_name::String = "trait")
+    nms = names(df)
+    @assert nms[1] == "taxon"
+    taxa = df.taxon
+    data = Matrix(df[!, 2:end])
+    trait_names = nms[2:end]
+
+    return TraitData(data, taxa, trait_names, trait_name)
+end
+
+
 ################################################################################
 ## Factor Model
 ################################################################################
