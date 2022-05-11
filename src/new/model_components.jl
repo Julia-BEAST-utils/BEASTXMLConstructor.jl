@@ -664,6 +664,7 @@ function save_xml(model::JointTraitModel, path::String; kw_args...)
 
     LightXML.save_file(xml, path)
     free(xml)
+    return nothing
 end
 
 

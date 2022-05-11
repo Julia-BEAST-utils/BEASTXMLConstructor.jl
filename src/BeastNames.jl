@@ -333,4 +333,5 @@ const FACTOR_PROPORTION_STATISTIC = "factorProportionStatistic"
 const RANDOM_WALK = "randomWalkOperator"
 const WINDOW_SIZE = "windowSize"
 
+const FORCE_FULL_PRECISION = "forceFullPrecision"
 end

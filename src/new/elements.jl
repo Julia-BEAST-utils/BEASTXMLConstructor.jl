@@ -35,7 +35,7 @@ end
 ################################################################################
 
 """
-<repeatedMeasuresModel id="traits.residualModel" traitName="traits">
+<repeatedMeasuresModel id="traits.residualModel" traitName="traits" forceFullPrecision="true">
     <treeModel idref="treeModel"/>
     <traitParameter>
         <parameter id="leaf.traits"/>
@@ -60,7 +60,10 @@ function repeatedMeasuresModelXML(;
                     PassthroughXMLElement("traitParameter", trait_parameter),
                     PassthroughXMLElement("samplingPrecision", precision)
                     ],
-            attributes = [bn.TRAIT_NAME => trait_name, bn.STANDARDIZE => standardize])
+            attributes = [bn.TRAIT_NAME => trait_name,
+                          bn.STANDARDIZE => standardize,
+                          bn.FORCE_FULL_PRECISION => true]
+        )
 end
 
 ################################################################################
@@ -142,7 +145,10 @@ function treeModelXML(tree::GeneralizedXMLElement, data::DataPairs;
         push!(children, trait_xml)
     end
 
-    return GeneralizedXMLElement("treeModel", children = children, id = id)
+    attributes = [bn.FIX_HEIGHTS => true]
+
+    return GeneralizedXMLElement("treeModel", children = children, id = id,
+                                  attributes = attributes)
 end
 
 function nodeHeightsXML(parameter::AbstractGeneralizedXMLElement;
