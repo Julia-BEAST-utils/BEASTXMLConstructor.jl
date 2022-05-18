@@ -645,6 +645,19 @@ function make_xml(model::JointTraitModel;
             trait_likelihood = trait_likelihood),
             loggable=true)
 
+    for i = 1:n_models
+        factor_model = find_element(sub_model_components[i],
+                                    bn.INTEGRATED_FACTORS)
+        if !isnothing(factor_model)
+            fac_prop = factorProportionStatisticXML(
+                    factor_model = factor_model,
+                    trait_likelihood = trait_likelihood
+            )
+
+            push!(org, fac_prop, loggable = true)
+        end
+    end
+
     mcmc = mcmcXML(org, ops, mcmc_options, file_name = file_name)
 
 

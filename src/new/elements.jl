@@ -732,3 +732,19 @@ function traitLoggerXML(;
                     bn.TAXON_EXPLICIT => taxon_name_explicit,
                     bn.NODES => nodes])
 end
+
+
+"""
+<factorProportionStatistic id="factorProportion">
+    <integratedFactorModel idref="factorModel"/>
+    <traitDataLikelihood idref="traitLikelihood"/>
+</factorProportionStatistic>
+"""
+
+function factorProportionStatisticXML(;
+        factor_model::GeneralizedXMLElement,
+        trait_likelihood::GeneralizedXMLElement,
+        id::String = get_attribute(factor_model, bn.TRAIT_NAME) * ".proportion")
+    return GeneralizedXMLElement(bn.FACTOR_PROPORTION_STATISTIC, id = id,
+            children = [factor_model, trait_likelihood])
+end

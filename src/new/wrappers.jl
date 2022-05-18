@@ -45,3 +45,11 @@ function push!(org::Organizer, el::GeneralizedXMLElement;
     return org
 end
 
+function find_element(org::Organizer, name::String)
+    i = findfirst(x -> x.name == name, org.elements)
+    if isnothing(i)
+        return nothing
+    end
+    return org.elements[i]
+end
+
