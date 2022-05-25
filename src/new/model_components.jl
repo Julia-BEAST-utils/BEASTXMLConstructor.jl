@@ -137,6 +137,7 @@ end
 
 function model_elements(model::FactorModel;
             tree_model::GeneralizedXMLElement,
+            taxa::GeneralizedXMLElement,
             is_submodel::Bool = false)
     trait_name = get_traitdata(model).trait_name
     id_header = is_submodel ? trait_name * "." : ""
@@ -247,7 +248,8 @@ end
 
 function setup_operators(::FactorModel, org::Organizer;
         trait_likelihood::GeneralizedXMLElement,
-        loadings_operator::String = "hmc")
+        loadings_operator::String = "hmc",
+        args...)
 
     @assert length(org.partial_providers) == 1
     provider = org.partial_providers[1]
@@ -314,14 +316,30 @@ struct RepeatedMeasuresModel <: AbstractDataModel
     data::TraitData
     precision::Matrix{Float64}
     standardize::Bool
+    discrete_traits::Vector{Int}
 
     function RepeatedMeasuresModel(data::TraitData, precision::AbstractMatrix{Float64};
-                                   standardize::Bool = false)
+                                   standardize::Bool = false,
+                                   discrete_traits::Vector{Int} = Int[])
         if !isposdef(precision)
             throw(ArgumentError("precision matrix must be positive-definite"))
         end
 
-        return new(data, Matrix(precision), standardize)
+        p = size(data, 2)
+        u = unique(discrete_traits)
+        if length(u) != length(discrete_traits)
+            throw(ArgumentError("all elements of discrete_traits must be unique"))
+        end
+
+        for trait in discrete_traits
+            if trait > p
+                throw(ArgumentError("trait $trait marked as discrete, " *
+                                    "but there are only $p traits"))
+            end
+        end
+
+
+        return new(data, Matrix(precision), standardize, sort(discrete_traits))
     end
 end
 
@@ -335,7 +353,9 @@ function priority(::RepeatedMeasuresModel)
 end
 
 function model_elements(model::RepeatedMeasuresModel;
-            tree_model::GeneralizedXMLElement, is_submodel::Bool = false)
+            tree_model::GeneralizedXMLElement,
+            taxa::GeneralizedXMLElement,
+            is_submodel::Bool = false)
     prec_id = is_submodel ?
             get_traitdata(model).trait_name * ".residualPrecision" :
                     "residualPrecision"
@@ -346,20 +366,58 @@ function model_elements(model::RepeatedMeasuresModel;
             trait_name = trait_name,
             standardize = model.standardize)
 
+    if has_discrete_traits(model)
+        d_traits = discrete_traits(model)
+        if size(model.data, 2) > 1 || length(d_traits) > 1
+            error("not implemented")
+        end
 
-    return Organizer([rm], loggables = [prec], partial_providers = [rm])
+        gdt = generalDataTypeXML(id = trait_name * ".discreteStates",
+                                 states = [0,1])
+        alignment = alignmentXML(taxa.children, gdt, model.data.data,
+                                 model.data.taxa, id= trait_name * ".alignment")
+        patterns = patternsXML(alignment, id = trait_name * ".patterns")
+        trait_parameter = find_trait_parameter(tree_model, trait_name)
+
+        oll = orderedLatentLiabilityLikelihoodXML(patterns = patterns,
+                                                  treeModel = tree_model,
+                                                  trait_parameter = trait_parameter,
+                                                  id = "$trait_name.latentLiability")
+        discrete_xml = [gdt, alignment, patterns, oll]
+        discrete_priors = [oll]
+    else
+        discrete_xml = GeneralizedXMLElement[]
+        discrete_priors = GeneralizedXMLElement[]
+    end
+
+
+    return Organizer([rm; discrete_xml], loggables = [prec], partial_providers = [rm],
+                    priors = discrete_priors)
 
     # factor_model_id =
 end
 
-function setup_operators(::RepeatedMeasuresModel, org::Organizer;
-        trait_likelihood::GeneralizedXMLElement, args...)
-    #TODO
-    return GeneralizedXMLElement[]
+function setup_operators(rm::RepeatedMeasuresModel, org::Organizer;
+        trait_likelihood::GeneralizedXMLElement,
+        trait_name::AbstractString,
+        args...)
+    ops = GeneralizedXMLElement[]
+    if has_discrete_traits(rm)
+        ll = find_element(org, bn.ORDERED_LATENT_LIABILITY)
+        ll_op = extendedLatentLiabilityGibbsOperatorXML(
+            likelihood = trait_likelihood,
+            latent_liability = ll,
+            trait_name = trait_name
+        )
+        push!(ops, ll_op)
+    end
+    return ops
 end
-function set_diffusion_mask!(::Vector{<:Real}, ::RepeatedMeasuresModel,
-        ::Int, ::Int)
-    # do nothing
+function set_diffusion_mask!(x::Vector{<:Real}, rm::RepeatedMeasuresModel,
+        dim::Int, offset::Int)
+    if has_discrete_traits(rm)
+        x[offset .+ discrete_traits(rm)] .= 0
+    end
 end
 
 function set_correlation_mask!(::Vector{<:Real}, ::RepeatedMeasuresModel,
@@ -378,6 +436,14 @@ function set_correlation_mask_full!(x::AbstractVector{<:Real},
         end
     end
 
+end
+
+function discrete_traits(rm::RepeatedMeasuresModel)
+    return rm.discrete_traits
+end
+
+function has_discrete_traits(rm::RepeatedMeasuresModel)
+    return length(rm.discrete_traits) > 0
 end
 
 
@@ -505,7 +571,8 @@ function make_xml(model::JointTraitModel;
 
     for i = 1:n_models
         sub_model = models[i]
-        components = model_elements(sub_model, tree_model = treeModel_xml, is_submodel = true)
+        components = model_elements(sub_model, tree_model = treeModel_xml,
+                                    taxa = taxa_xml, is_submodel = true)
         sub_model_components[i] = components
         org = vcat(org,  components)
     end
@@ -622,12 +689,16 @@ function make_xml(model::JointTraitModel;
     # rw_op = randomWalkXML(maskedParameterXML(offdiag_param, corr_mask),
     #     window_size = 0.1)
 
+    trait_name = get_attribute(trait_likelihood, "traitName")
+
+
     for i = 1:n_models
         sub_model = models[i]
         sub_components = sub_model_components[i]
         sub_operators = setup_operators(sub_model, sub_components,
                 trait_likelihood = trait_likelihood,
-                loadings_operator = loadings_operator)
+                loadings_operator = loadings_operator,
+                trait_name = "tip.$trait_name.$(i - 1)")
         operators = [operators; sub_operators]
     end
 

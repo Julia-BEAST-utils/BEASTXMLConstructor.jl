@@ -308,6 +308,8 @@ const SPACING = "spacing"
 const GENERAL_DATA_TYPE = "generalDataType"
 const STATE = "state"
 const CODE = "code"
+const AMBIGUITY = "ambiguity"
+const STATES = "states"
 
 const ALIGNMENT = "alignment"
 const SEQUENCE = "sequence"

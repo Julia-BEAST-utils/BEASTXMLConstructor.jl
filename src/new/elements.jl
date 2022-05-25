@@ -331,6 +331,13 @@ function transformedParameterXML(parameter::GeneralizedXMLElement,
             attributes = attrs,
             id = id)
 end
+
+
+
+function compoundParameterXML(params::Vector{<:GeneralizedXMLElement};
+                              id::StringOrNothing = nothing)
+    return GeneralizedXMLElement(bn.COMPOUND_PARAMETER, id = id, children = params)
+end
 ################################################################################
 ## traitDataLikelihood
 ################################################################################
@@ -704,6 +711,136 @@ function logXML(elements::Vector{<:GeneralizedXMLElement}, log_every::Int;
             "overwrite" => overwrite]
     return GeneralizedXMLElement("log", id = id, children = elements,
             attributes = attrs)
+end
+
+
+################################################################################
+## Latent Liability
+################################################################################
+
+"""
+<generalDataType id="discreteStates">
+    <state code="0"/>
+    <state code="1"/>
+    <ambiguity code="?" states="01"/>
+</generalDataType>
+"""
+
+function generalDataTypeXML(;
+        id::String,
+        states::Vector,
+        ambiguity_code::String = "?")
+    states_xml = [GeneralizedXMLElement(bn.STATE, attributes = [bn.CODE => state])
+                for state in states]
+    push!(states_xml, GeneralizedXMLElement(bn.AMBIGUITY, attributes = [
+                                                    bn.CODE => ambiguity_code,
+                                                    bn.STATES => join(states)]))
+    return GeneralizedXMLElement(bn.GENERAL_DATA_TYPE, children = states_xml, id = id)
+end
+
+
+"""
+<alignment id="traits.alignment">
+    <generalDataType idref="discreteStates"/>
+    <sequence><taxon idref="139_TheraceraPennigera_1_NF_N_RAW_AOB"/>1
+    </sequence>
+    <sequence><taxon idref="127_TayuvaLilacina_8_NP_N_RAW_AOB"/>0
+    </sequence>
+    <sequence><taxon idref="127_TayuvaLilacina_7_NP_N_RAW_AOB"/>0
+    </sequence>
+</alignment>
+"""
+
+function alignmentXML(taxaElements::Vector{GeneralizedXMLElement},
+                      dataType::GeneralizedXMLElement,
+                      sequences::Matrix,
+                      taxa::Vector{<:AbstractString};
+                      id::StringOrNothing = nothing)
+
+    n = length(taxa)
+    @assert size(sequences, 1) == length(taxaElements) == n
+    seqs = Vector{GeneralizedXMLElement}(undef, n)
+    for i = 1:n
+        taxon = taxa[i]
+        @assert get_id(taxaElements[i]) == taxon
+        seqXML = GeneralizedXMLElement(bn.SEQUENCE,
+                    children = [taxaElements[i]],
+                    content = join(Int.(sequences[i, :]), ' '))
+        seqs[i] = seqXML
+    end
+
+    return GeneralizedXMLElement(bn.ALIGNMENT, children = [dataType; seqs], id = id)
+end
+
+
+"""
+<patterns id="traits.patterns" from="1" unique="false">
+    <alignment idref="traits.alignment"/>
+</patterns>
+"""
+
+function patternsXML(alignment::GeneralizedXMLElement;
+                     id::StringOrNothing = get_id(alignment) * ".patterns")
+    attrs = [bn.FROM => "1", bn.UNIQUE => false]
+    return GeneralizedXMLElement(bn.PATTERNS, children = [alignment],
+                                  attributes = attrs, id = id)
+end
+
+
+
+"""
+<orderedLatentLiabilityLikelihood NTraits="1" NData="1" id="traits.latentLiability">
+    <patterns idref="traits.patterns"/>
+    <treeModel idref="treeModel"/>
+    <tipTrait>
+        <parameter idref="leafTraits"/>
+    </tipTrait>
+    <threshold>
+        <compoundParameter id="leafTraits.threshold">
+            <parameter value="0.0"/>
+        </compoundParameter>
+    </threshold>
+    <numClasses>
+        <parameter value="2.0"/>
+    </numClasses>
+</orderedLatentLiabilityLikelihood>
+"""
+
+function orderedLatentLiabilityLikelihoodXML(;
+            patterns::GeneralizedXMLElement,
+            treeModel::GeneralizedXMLElement,
+            trait_parameter::GeneralizedXMLElement,
+            id::StringOrNothing = nothing
+            )
+    @warn "latent liability currently only implemented for a 1-D trait"
+    tip_child = PassthroughXMLElement(bn.TIP_TRAIT, trait_parameter)
+    thresh_param = compoundParameterXML([parameterXML(value = [0.0])])
+    threshold = PassthroughXMLElement(bn.THRESHOLD, thresh_param)
+    num_classes = PassthroughXMLElement(bn.NUM_CLASSES, parameterXML(value=[2.0]))
+
+    children = [patterns, treeModel, tip_child, threshold, num_classes]
+    attrs = [bn.N_TRAITS => "1", bn.N_DATA => "1"]
+    return GeneralizedXMLElement(bn.ORDERED_LATENT_LIABILITY,
+            children = children, attributes = attrs, id = id)
+end
+
+
+"""
+<extendedLatentLiabilityGibbsOperator weight="1.0" traitName="">
+    <traitDataLikelihood idref="traitLikelihood"/>
+    <orderedLatentLiabilityLikelihood idref="traits.latentLiability"/>
+</extendedLatentLiabilityGibbsOperator>
+"""
+
+function extendedLatentLiabilityGibbsOperatorXML(;
+        likelihood::GeneralizedXMLElement,
+        latent_liability::GeneralizedXMLElement,
+        trait_name::AbstractString,
+        weight::Real = 1
+        )
+    return GeneralizedXMLElement(bn.EXTENDED_GIBBS_OPERATOR,
+            children = [likelihood, latent_liability],
+            attributes = [bn.WEIGHT => weight, bn.TRAIT_NAME => trait_name])
 end
 
 
