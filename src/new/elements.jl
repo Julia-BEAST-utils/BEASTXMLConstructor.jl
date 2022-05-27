@@ -324,9 +324,13 @@ function transformedParameterXML(parameter::GeneralizedXMLElement,
         transform::AbstractGeneralizedXMLElement;
         as_matrix::Bool = false,
         is_multivariate::Bool = as_matrix,
+        is_inverse::Bool = false,
         id::Nullable{String} = nothing)
     nm = is_multivariate ? bn.TRANSFORMED_MULTIVARIATE_PARAMETER : bn.TRANSFORMED_PARAMETER
-    attrs = is_multivariate && as_matrix ? [bn.AS_MATRIX => as_matrix] : Vector{Pair{String, String}}[]
+    attrs = [bn.INVERSE => is_inverse]
+    if is_multivariate && as_matrix
+        attrs = [attrs; bn.AS_MATRIX => as_matrix]
+    end
     return GeneralizedXMLElement(nm, children = [parameter, transform],
             attributes = attrs,
             id = id)
@@ -601,6 +605,38 @@ function randomWalkXML(parameter::GeneralizedXMLElement;
     return GeneralizedXMLElement("randomWalkOperator", child = parameter,
             attributes = [bn.WINDOW_SIZE => window_size, bn.WEIGHT => weight])
 end
+
+"""
+<transformedParameterRandomWalkOperator windowSize="0.1" weight="10" checkValid="true">
+    <transformedMultivariateParameter idref="corr"/>
+    <correlationBounds dimension="4"/>
+</transformedParameterRandomWalkOperator>
+"""
+
+function transformedRandomWalkXML(parameter::GeneralizedXMLElement;
+        bounds::Nullable{<:GeneralizedXMLElement} = nothing,
+        weight::Real = 1,
+        check_valid::Bool = true,
+        window_size::Real = 0.1,
+        mask::Vector{Int} = Int[]
+        )
+    attrs = [bn.WEIGHT => weight, bn.WINDOW_SIZE => window_size, bn.CHECK_VALID => check_valid]
+    children = AbstractGeneralizedXMLElement[parameter]
+    if !isnothing(bounds)
+        push!(children, bounds)
+    end
+
+    if length(mask) > 0
+        mask_xml = PassthroughXMLElement(bn.UPDATE_INDEX, parameterXML(value = mask))
+        push!(children, mask_xml)
+    end
+
+    return GeneralizedXMLElement(bn.TRANSFORMED_RANDOM_WALK,
+            children = children,
+            attributes= attrs)
+end
+
+
 
 ################################################################################
 ## distributions

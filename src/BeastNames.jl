@@ -336,4 +336,10 @@ const RANDOM_WALK = "randomWalkOperator"
 const WINDOW_SIZE = "windowSize"
 
 const FORCE_FULL_PRECISION = "forceFullPrecision"
+
+const CHECK_VALID = "checkValid"
+const TRANSFORMED_RANDOM_WALK = "transformedParameterRandomWalkOperator"
+const UPDATE_INDEX = "updateIndex"
+
+const INVERSE = "inverse"
 end
