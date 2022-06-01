@@ -552,7 +552,8 @@ end
 function make_xml(model::JointTraitModel;
         mcmc_options = MCMCOptions(),
         file_name::String = "test.log",
-        loadings_operator::String = "hmc")
+        loadings_operator::String = "hmc",
+        pagels_lambda::Bool = false)
     @unpack data, taxa, newick, models = model
 
     is_multiFactor = count(x -> typeof(x) <: FactorModel, models) > 1
@@ -607,6 +608,15 @@ function make_xml(model::JointTraitModel;
         org = vcat(org,  components)
     end
 
+
+    pagel_param = parameterXML(id="lambda", value=[0], lower=[0], upper=[1])
+    if pagels_lambda
+        push!(org, pagel_param, loggable = true)
+        treeModel_xml = transformedTreeModelXML(treeModel_xml,
+                                                pagel_param,
+                                                id="treeModel.transformed")
+    end
+
     joint_extension = GeneralizedXMLElement("jointPartialsProvider",
             id = "jointModel",
             children = org.partial_providers)
@@ -621,6 +631,10 @@ function make_xml(model::JointTraitModel;
 
     # diffusion priors + operator
     operators = GeneralizedXMLElement[]
+
+    if pagels_lambda
+        push!(operators, randomWalkXML(pagel_param))
+    end
 
 
     # if is_multiFactor

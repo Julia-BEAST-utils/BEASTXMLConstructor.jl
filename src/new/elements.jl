@@ -192,6 +192,14 @@ function find_trait_parameter(tm::GeneralizedXMLElement, trait::String)
     return find_element(node_traits, name = "parameter")
 end
 
+function transformedTreeModelXML(tm::GeneralizedXMLElement,
+                                 param::GeneralizedXMLElement;
+                                 id::Nullable{String} = nothing)
+    return GeneralizedXMLElement("transformedTreeModel",
+        children = [tm, param],
+        id = id)
+end
+
 
 ################################################################################
 ## multivariateDiffusionModel
