@@ -4,13 +4,13 @@ mutable struct NormalGammaPrecisionOperatorXMLElement <: OperatorXMLElement
     el::XMLOrNothing
     ggp::GammaGibbsProvider
     prior_provider::MyXMLElement
-    indices::Vector{Int}
+    indices::Union{Nothing, Vector{Int}}
     weight::Float64
 end
 
 function NormalGammaPrecisionOperatorXMLElement(ggp::GammaGibbsProvider,
                     prior::T) where T <: MyXMLElement
-    return NormalGammaPrecisionOperatorXMLElement(nothing, ggp, prior, Int[], 1.0)
+    return NormalGammaPrecisionOperatorXMLElement(nothing, ggp, prior, nothing, 1.0)
 end
 
 
@@ -107,7 +107,7 @@ function make_xml(ngpxml::NormalGammaPrecisionOperatorXMLElement)
 
     el = new_element(bn.NGP_OPERATOR)
     set_attribute(el, bn.WEIGHT, ngpxml.weight)
-    if length(ngpxml.indices) > 0
+    if !isnothing(ngpxml.indices)
         set_attribute(el, bn.INDICES, join(ngpxml.indices, ' '))
     end
     prior_el = new_child(el, bn.PRIOR)
