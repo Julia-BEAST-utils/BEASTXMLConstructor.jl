@@ -929,3 +929,31 @@ function factorProportionStatisticXML(;
     return GeneralizedXMLElement(bn.FACTOR_PROPORTION_STATISTIC, id = id,
             children = [factor_model, trait_likelihood])
 end
+
+
+"""
+<blombergsK id="kstat" traitName="X">
+    <traitDataLikelihood idref="traitLikelihood"/>
+</blombergsK>
+"""
+
+function blombergsKStatisticXML(;
+        trait_likelihood::GeneralizedXMLElement,
+        trait_name::AbstractString = get_trait_name(trait_likelihood),
+        id::AbstractString = "K.$trait_name")
+
+    return GeneralizedXMLElement("blombergsK",
+        children = [trait_likelihood],
+        attributes = [bn.TRAIT_NAME => trait_name],
+        id = id)
+end
+
+
+
+function postOrderRootMeanXML(;
+        trait_likelihood::GeneralizedXMLElement,
+        id::AbstractString = "rootMean.$(get_trait_name(trait_likelihood))")
+    return GeneralizedXMLElement("postOrderRootMeanStatistic",
+            children = [trait_likelihood],
+            id = id)
+end
