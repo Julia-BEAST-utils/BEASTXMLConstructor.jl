@@ -52,6 +52,32 @@ struct TraitData
     taxa::Vector{String}
     trait_names::Vector{String}
     trait_name::String
+    discrete_traits::Vector{Int}
+
+
+    function TraitData(data::Matrix{Float64},
+                       taxa::Vector{String},
+                       trait_names::Vector{String},
+                       trait_name::String,
+                       discrete_traits::Vector{Int})
+        n, p = size(data)
+        if length(taxa) != n
+            throw(ArgumentError("data matrix had $n rows but $(length(taxa)) " *
+                                "taxa were provided"))
+        end
+        if length(trait_names) != p
+            throw(ArgumentError("data matrix had $p columns but $(length(trait_names)) " *
+                                "trait names were provided"))
+        end
+        for trait in discrete_traits
+            if trait > p
+                throw(ArgumentError("trait $trait marked as discrete, " *
+                                    "but there are only $p traits"))
+            end
+        end
+
+        return new(data, taxa, trait_names, trait_name, sort(discrete_traits))
+    end
 end
 
 import Base.size
@@ -61,8 +87,9 @@ end
 
 function TraitData(data::Matrix{Float64}, taxa::Vector{String};
         trait_name::String = "traits",
-        trait_names::Vector{String} = ["trait_$i" for i = 1:size(data, 2)])
-    return TraitData(data, taxa, trait_names, trait_name)
+        trait_names::Vector{String} = ["trait_$i" for i = 1:size(data, 2)],
+        discrete_traits::Vector{Int} = Int[])
+    return TraitData(data, taxa, trait_names, trait_name, discrete_traits)
 end
 
 function TraitData(old_data::Matrix{Union{Missing, Float64}}, args...; kw_args...)
@@ -316,30 +343,20 @@ struct RepeatedMeasuresModel <: AbstractDataModel
     data::TraitData
     precision::Matrix{Float64}
     standardize::Bool
-    discrete_traits::Vector{Int}
 
     function RepeatedMeasuresModel(data::TraitData, precision::AbstractMatrix{Float64};
-                                   standardize::Bool = false,
-                                   discrete_traits::Vector{Int} = Int[])
+                                   standardize::Bool = false)
         if !isposdef(precision)
             throw(ArgumentError("precision matrix must be positive-definite"))
         end
 
         p = size(data, 2)
-        u = unique(discrete_traits)
-        if length(u) != length(discrete_traits)
-            throw(ArgumentError("all elements of discrete_traits must be unique"))
-        end
+        # u = unique(discrete_traits)
+        # if length(u) != length(discrete_traits)
+        #     throw(ArgumentError("all elements of discrete_traits must be unique"))
+        # end
 
-        for trait in discrete_traits
-            if trait > p
-                throw(ArgumentError("trait $trait marked as discrete, " *
-                                    "but there are only $p traits"))
-            end
-        end
-
-
-        return new(data, Matrix(precision), standardize, sort(discrete_traits))
+        return new(data, Matrix(precision), standardize)
     end
 end
 
@@ -366,33 +383,10 @@ function model_elements(model::RepeatedMeasuresModel;
             trait_name = trait_name,
             standardize = model.standardize)
 
-    if has_discrete_traits(model)
-        d_traits = discrete_traits(model)
-        if size(model.data, 2) > 1 || length(d_traits) > 1
-            error("not implemented")
-        end
-
-        gdt = generalDataTypeXML(id = trait_name * ".discreteStates",
-                                 states = [0,1])
-        alignment = alignmentXML(taxa.children, gdt, model.data.data,
-                                 model.data.taxa, id= trait_name * ".alignment")
-        patterns = patternsXML(alignment, id = trait_name * ".patterns")
-        trait_parameter = find_trait_parameter(tree_model, trait_name)
-
-        oll = orderedLatentLiabilityLikelihoodXML(patterns = patterns,
-                                                  treeModel = tree_model,
-                                                  trait_parameter = trait_parameter,
-                                                  id = "$trait_name.latentLiability")
-        discrete_xml = [gdt, alignment, patterns, oll]
-        discrete_priors = [oll]
-    else
-        discrete_xml = GeneralizedXMLElement[]
-        discrete_priors = GeneralizedXMLElement[]
-    end
 
 
-    return Organizer([rm; discrete_xml], loggables = [prec], partial_providers = [rm],
-                    priors = discrete_priors)
+
+    return Organizer([rm], loggables = [prec], partial_providers = [rm])
 
     # factor_model_id =
 end
@@ -402,22 +396,22 @@ function setup_operators(rm::RepeatedMeasuresModel, org::Organizer;
         trait_name::AbstractString,
         args...)
     ops = GeneralizedXMLElement[]
-    if has_discrete_traits(rm)
-        ll = find_element(org, bn.ORDERED_LATENT_LIABILITY)
-        ll_op = extendedLatentLiabilityGibbsOperatorXML(
-            likelihood = trait_likelihood,
-            latent_liability = ll,
-            trait_name = trait_name
-        )
-        push!(ops, ll_op)
-    end
+    # if has_discrete_traits(rm)
+    #     ll = find_element(org, bn.ORDERED_LATENT_LIABILITY)
+    #     ll_op = extendedLatentLiabilityGibbsOperatorXML(
+    #         likelihood = trait_likelihood,
+    #         latent_liability = ll,
+    #         trait_name = trait_name
+    #     )
+    #     push!(ops, ll_op)
+    # end
     return ops
 end
 function set_diffusion_mask!(x::Vector{<:Real}, rm::RepeatedMeasuresModel,
         dim::Int, offset::Int)
-    if has_discrete_traits(rm)
-        x[offset .+ discrete_traits(rm)] .= 0
-    end
+    # if has_discrete_traits(rm)
+    #     x[offset .+ discrete_traits(rm)] .= 0
+    # end
 end
 
 function set_correlation_mask!(::Vector{<:Real}, ::RepeatedMeasuresModel,
@@ -442,11 +436,43 @@ function discrete_traits(rm::RepeatedMeasuresModel)
     return rm.discrete_traits
 end
 
-function has_discrete_traits(rm::RepeatedMeasuresModel)
-    return length(rm.discrete_traits) > 0
+# function has_discrete_traits(rm::RepeatedMeasuresModel)
+#     return length(rm.discrete_traits) > 0
+# end
+
+
+################################################################################
+## Latent Liability
+################################################################################
+
+function add_latent_liability()
+
+    if has_discrete_traits(model)
+        d_traits = discrete_traits(model)
+        if size(model.data, 2) > 1 || length(d_traits) > 1
+            error("not implemented")
+        end
+
+        gdt = generalDataTypeXML(id = trait_name * ".discreteStates",
+                                states = [0,1])
+        alignment = alignmentXML(taxa.children, gdt, model.data.data,
+                                model.data.taxa, id= trait_name * ".alignment")
+        patterns = patternsXML(alignment, id = trait_name * ".patterns")
+        trait_parameter = find_trait_parameter(tree_model, trait_name)
+
+        oll = orderedLatentLiabilityLikelihoodXML(patterns = patterns,
+                                                treeModel = tree_model,
+                                                trait_parameter = trait_parameter,
+                                                id = "$trait_name.latentLiability")
+        discrete_xml = [gdt, alignment, patterns, oll]
+        discrete_priors = [oll]
+    else
+        discrete_xml = GeneralizedXMLElement[]
+        discrete_priors = GeneralizedXMLElement[]
+    end
+
+    return Organizer(discrete_xml, priors = discrete_priors)
 end
-
-
 
 ################################################################################
 ## Joint model
