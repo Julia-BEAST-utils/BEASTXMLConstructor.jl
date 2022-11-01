@@ -1,7 +1,7 @@
 name = "BEASTXMLConstructor"
 uuid = "2ff12cca-58d7-407c-9ba2-24d4f684d922"
 authors = ["Gabe Hassler <gabriel.w.hassler@gmail.com> and contributors"]
-version = "0.2.0"
+version = "1.0"
 
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
