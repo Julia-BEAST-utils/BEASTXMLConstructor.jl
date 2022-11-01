@@ -87,7 +87,7 @@ end
 
 function TraitData(data::Matrix{Float64}, taxa::Vector{String};
         trait_name::String = "traits",
-        trait_names::Vector{String} = ["trait_$i" for i = 1:size(data, 2)],
+        trait_names::Vector{String} = ["$(trait_name)_$i" for i = 1:size(data, 2)],
         discrete_traits::Vector{Int} = Int[])
     return TraitData(data, taxa, trait_names, trait_name, discrete_traits)
 end
@@ -126,14 +126,26 @@ function parse_traitdata(path::String; kwargs...)
     parse_traitdata(df; kwargs...)
 end
 
-function parse_traitdata(df::DataFrame; trait_name::String = "trait")
-    nms = names(df)
+function parse_traitdata(df::DataFrame; trait_name::String = "trait", discrete_traits::Vector{Int} = Int[])
+    nms = String.(names(df))
     @assert nms[1] == "taxon"
-    taxa = df.taxon
-    data = Matrix(df[!, 2:end])
+    taxa = convert(Vector{String}, df.taxon)
+    data = floatconvert.(Matrix(df[!, 2:end]))
     trait_names = nms[2:end]
 
-    return TraitData(data, taxa, trait_names, trait_name)
+    return TraitData(data, taxa, trait_names, trait_name,discrete_traits)
+end
+
+function floatconvert(x::Float64)
+    return x
+end
+
+function floatconvert(x::Int)
+    return convert(Float64, x)
+end
+
+function floatconvert(x::Missing)
+    return missing
 end
 
 
@@ -408,7 +420,12 @@ function setup_operators(rm::RepeatedMeasuresModel, org::Organizer;
     return ops
 end
 function set_diffusion_mask!(x::Vector{<:Real}, rm::RepeatedMeasuresModel,
-        dim::Int, offset::Int)
+        ::Int, offset::Int)
+
+    for ind in rm.data.discrete_traits
+        x[offset + ind] = 0
+    end
+
     # if has_discrete_traits(rm)
     #     x[offset .+ discrete_traits(rm)] .= 0
     # end
@@ -659,11 +676,11 @@ function make_xml(model::JointTraitModel;
     push!(org, trait_likelihood, likelihood = true)
 
     if blombergs_k
-        k_stat = blombergsKStatisticXML(trait_likelihood = trait_likelihood)
-        push!(org, k_stat, loggable = true)
+        # k_stat = blombergsKStatisticXML(trait_likelihood = trait_likelihood)
+        # push!(org, k_stat, loggable = true)
 
-        root_stat = postOrderRootMeanXML(trait_likelihood = trait_likelihood)
-        push!(org, root_stat, loggable = true)
+        # root_stat = postOrderRootMeanXML(trait_likelihood = trait_likelihood)
+        # push!(org, root_stat, loggable = true)
     end
 
     # diffusion priors + operator
@@ -733,21 +750,21 @@ function make_xml(model::JointTraitModel;
 
     n_diff = div(q * (q + 1), 2)
     diff_mask = ones(Int, n_diff)
-    corr_mask = ones(Int, n_diff - q)
+    # corr_mask = ones(Int, n_diff - q)
     offset = 0
     for sub_model in models
         set_diffusion_mask!(diff_mask, sub_model, q, offset)
-        set_correlation_mask!(corr_mask, sub_model, q, offset)
+        # set_correlation_mask!(corr_mask, sub_model, q, offset)
         offset += input_dim(sub_model)
     end
 
 
-    diff_sub = @view diff_mask[(q + 1):end] #temporary solution
-    for i = 1:length(corr_mask)
-        if diff_sub[i] == 1 && corr_mask[i] == 1
-            corr_mask[i] = 0
-        end
-    end
+    # diff_sub = @view diff_mask[(q + 1):end] #temporary solution
+    # for i = 1:length(corr_mask)
+    #     if diff_sub[i] == 1 && corr_mask[i] == 1
+    #         corr_mask[i] = 0
+    #     end
+    # end
 
     diff_transform = multivariateCompoundTransformXML(
                 transformXML("log", dim = q),
