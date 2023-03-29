@@ -957,3 +957,64 @@ function postOrderRootMeanXML(;
             children = [trait_likelihood],
             id = id)
 end
+
+################################################################################
+## Adjacency
+################################################################################
+
+
+"""
+<adjacentTaxa>
+    <treeModel idref="treeModel"/>
+    <adjacency sharedPerimeter="1">
+        <taxonData perimeter="4" area="2">
+            <taxon idref="02013"/>
+        </taxonData>
+        <taxonData perimeter="4" area="2">
+            <taxon idref="02016"/>
+        </taxonData>
+    </adjacency>
+    ...
+</adjacentTaxa>
+
+"""
+
+function taxonDataXML(taxon::GeneralizedXMLElement;
+                      perimeter::Float64,
+                      area::Float64)
+    return GeneralizedXMLElement("taxonData",
+                                 children = [taxon],
+                                 attributes = ["perimeter" => perimeter,
+                                               "area" => area])
+end
+
+function adjacentTaxaXML(;
+                         taxa::Vector{GeneralizedXMLElement},
+                         tree_model::GeneralizedXMLElement,
+                         adjacent_taxa::DataFrame,
+                         id::AbstractString = "adjacentTaxa",
+                         )
+    tdos = [
+            taxonDataXML(
+                    find_taxon(taxa,
+                               adjacent_taxa.orig[i]),
+                               perimeter = adjacent_taxa.orig_perim[i],
+                               area = adjacent_taxa.orig_area[i])
+            for i = 1:nrow(adjacent_taxa)]
+    tdds = [
+            taxonDataXML(
+                    find_taxon(taxa,
+                                adjacent_taxa.dest[i]),
+                                perimeter = adjacent_taxa.dest_perim[i],
+                                area = adjacent_taxa.dest_area[i])
+            for i = 1:nrow(adjacent_taxa)]
+    adjacencies = [PassthroughXMLElement("adjacency",
+            [tdos[i], tdds[i]])
+            for i = 1:nrow(adjacent_taxa)]
+
+    return GeneralizedXMLElement("adjacentTaxa", children = [tree_model; adjacencies], id = id)
+end
+
+function find_taxon(taxa::Vector{GeneralizedXMLElement}, id::AbstractString)
+    taxa[findfirst(x -> x.id == id, taxa)]
+end
